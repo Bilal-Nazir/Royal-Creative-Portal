@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+:root {
+  /* RC/Foundations — colors pulled from Figma file q59B9tWGSDdfXZXSSNDazB, page 00 */
+  --bg: #0b0b0f;
+  --surface: #141419;
+  --surface-2: #1c1c23;
+  --line: #2a2a32;
+  --ink: #f5f5f7;
+  --ink-secondary: #a1a1aa;
+  --brand-primary: #be103c;
+  --brand-rose: #ff5c7a;
+  --brand-orange: #f15f0d;
+  --brand-amber: #fea205;
+  --brand-gradient: linear-gradient(90deg, #ea124a 0%, #f15f0d 55%, #fea205 100%);
+  --success: #8ee0ae;
+  --info: #9db7ff;
+  --danger: #ff5c7a;
+  --radius: 16px;
+  --radius-control: 10px;
+  --radius-pill: 15px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-rose: var(--brand-rose);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-amber: var(--brand-amber);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+
+  --radius-rc: var(--radius);
+  --radius-rc-control: var(--radius-control);
+  --radius-rc-pill: var(--radius-pill);
+
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-poppins);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.rc-brand-gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.rc-brand-gradient-bg {
+  background: var(--brand-gradient);
+}
+
+/* Visible focus ring for keyboard navigation — Figma has no focus state, this is an accessibility addition */
+:focus-visible {
+  outline: 2px solid var(--brand-amber);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
