@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:reset": "rm -f .data/phase2a-store.json"
   },
   "dependencies": {
     "jose": "^6.2.17",

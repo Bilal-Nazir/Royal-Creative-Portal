@@ -8,7 +8,7 @@ const bodySchema = z.object({
   stage: z.enum(STAGE_ORDER).optional(),
   briefStatus: z.enum(["draft", "sent", "changes_requested", "approved"]).optional(),
   proposalStatus: z.enum(["draft", "sent", "changes_requested", "accepted"]).optional(),
-  invoiceStatus: z.enum(["unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"]).optional(),
+  invoiceStatus: z.enum(["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"]).optional(),
 });
 
 // No session check here — NODE_ENV === "development" below is the only gate.

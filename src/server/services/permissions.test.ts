@@ -7,6 +7,7 @@ function project(overrides: Partial<Project> = {}): Project {
   return {
     id: "proj-royal-trendsy",
     name: "Royal Trendsy website",
+    description: "Test fixture project.",
     projectType: "Website development",
     clientId: "royal-trendsy",
     clientName: "Royal Trendsy",

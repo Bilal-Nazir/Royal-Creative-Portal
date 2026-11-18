@@ -1,10 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { randomUUID } from "node:crypto";
 import type { Project } from "../domain/project";
 import type { BriefVersion } from "../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../domain/proposal";
 import type { Invoice } from "../domain/invoice";
 import type { Comment } from "../domain/comment";
+import type { ShareLink } from "../domain/share-link";
 import { SEED_PROJECTS } from "../repositories/in-memory/seed-data";
 import {
   SEED_BRIEF_VERSIONS,
@@ -12,6 +14,7 @@ import {
   SEED_ACCEPTANCE_RECORDS,
   SEED_INVOICES,
   SEED_COMMENTS,
+  SEED_SHARE_LINKS,
 } from "../repositories/in-memory/seed-data-phase2a";
 
 export interface StoreShape {
@@ -21,6 +24,7 @@ export interface StoreShape {
   acceptanceRecords: AcceptanceRecord[];
   invoices: Invoice[];
   comments: Comment[];
+  shareLinks: ShareLink[];
 }
 
 const STORE_PATH = join(process.cwd(), ".data", "phase2a-store.json");
@@ -36,6 +40,7 @@ function seedStore(): StoreShape {
       acceptanceRecords: SEED_ACCEPTANCE_RECORDS,
       invoices: SEED_INVOICES,
       comments: SEED_COMMENTS,
+      shareLinks: SEED_SHARE_LINKS,
     }),
   );
 }
@@ -59,9 +64,18 @@ export function readStore(): StoreShape {
   return JSON.parse(raw) as StoreShape;
 }
 
+/**
+ * Atomic: writes to a temp file in the same directory, then renames it over
+ * the real path. `rename` is a single filesystem operation (on the same
+ * volume), so a reader never sees a half-written file — worst case it reads
+ * the old version or the new one, never a torn one.
+ */
 export function writeStore(store: StoreShape): void {
-  mkdirSync(dirname(STORE_PATH), { recursive: true });
-  writeFileSync(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
+  const dir = dirname(STORE_PATH);
+  mkdirSync(dir, { recursive: true });
+  const tmpPath = join(dir, `.phase2a-store.${randomUUID()}.tmp`);
+  writeFileSync(tmpPath, JSON.stringify(store, null, 2), "utf-8");
+  renameSync(tmpPath, STORE_PATH);
 }
 
 export function resetStore(): void {

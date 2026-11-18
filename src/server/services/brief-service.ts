@@ -88,6 +88,73 @@ export async function sendRevisedBrief(
   return ok(revised);
 }
 
+/**
+ * A05's "Save brief draft" / "Send brief for review" actions. Unlike
+ * sendRevisedBrief (which always creates a new version, for responding to
+ * changes_requested), these are draft-aware: while the current version is
+ * still a draft, edits update it in place; once it's been sent, a save/send
+ * starts a new version so the sent copy the client is viewing is untouched.
+ */
+export async function saveBriefDraft(
+  session: SessionPayload,
+  projectId: string,
+  fields: BriefFields,
+): Promise<ServiceResult<BriefVersion>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+  const denied = assertAgencyCanManageProject<BriefVersion>(session, project);
+  if (denied) return denied;
+
+  const current = await briefRepository.getCurrentVersion(projectId);
+  if (current && current.status === "draft") {
+    const updated: BriefVersion = { ...current, fields };
+    await briefRepository.update(updated);
+    return ok(updated);
+  }
+
+  const draft: BriefVersion = {
+    id: `brief-${projectId}-v${(current?.versionNumber ?? 0) + 1}`,
+    projectId,
+    versionNumber: (current?.versionNumber ?? 0) + 1,
+    fields,
+    status: "draft",
+    createdByName: session.name,
+    createdAt: new Date().toISOString(),
+  };
+  await briefRepository.create(draft);
+  return ok(draft);
+}
+
+export async function sendBriefForReview(
+  session: SessionPayload,
+  projectId: string,
+  fields: BriefFields,
+): Promise<ServiceResult<BriefVersion>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+  const denied = assertAgencyCanManageProject<BriefVersion>(session, project);
+  if (denied) return denied;
+
+  const current = await briefRepository.getCurrentVersion(projectId);
+  if (current && current.status === "draft") {
+    const updated: BriefVersion = { ...current, fields, status: "sent" };
+    await briefRepository.update(updated);
+    return ok(updated);
+  }
+
+  const sent: BriefVersion = {
+    id: `brief-${projectId}-v${(current?.versionNumber ?? 0) + 1}`,
+    projectId,
+    versionNumber: (current?.versionNumber ?? 0) + 1,
+    fields,
+    status: "sent",
+    createdByName: session.name,
+    createdAt: new Date().toISOString(),
+  };
+  await briefRepository.create(sent);
+  return ok(sent);
+}
+
 export async function postBriefComment(
   session: SessionPayload,
   projectId: string,

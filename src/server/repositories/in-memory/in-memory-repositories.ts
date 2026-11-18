@@ -22,7 +22,7 @@ import type { Comment, CommentTargetType } from "../../domain/comment";
 import type { ContentChecklistItem } from "../../domain/content";
 import type { ShareLink } from "../../domain/share-link";
 import { SEED_USERS, SEED_PROJECTS, SEED_ACTIVITIES, SEED_ATTENTION_TASKS, SEED_AGENCY_OVERVIEW } from "./seed-data";
-import { SEED_CONTENT_CHECKLIST_ITEMS, SEED_SHARE_LINKS } from "./seed-data-phase2a";
+import { SEED_CONTENT_CHECKLIST_ITEMS } from "./seed-data-phase2a";
 import { readStore, writeStore } from "../../storage/file-store";
 
 export class InMemoryUserRepository implements UserRepository {
@@ -69,6 +69,12 @@ export class FileStoreProjectRepository implements ProjectRepository {
     const index = store.projects.findIndex((p) => p.id === project.id);
     if (index === -1) return;
     store.projects[index] = project;
+    writeStore(store);
+  }
+
+  async create(project: Project): Promise<void> {
+    const store = readStore();
+    store.projects.push(project);
     writeStore(store);
   }
 }
@@ -172,6 +178,14 @@ export class FileStoreAcceptanceRecordRepository implements AcceptanceRecordRepo
 }
 
 export class FileStoreInvoiceRepository implements InvoiceRepository {
+  async listAll(): Promise<Invoice[]> {
+    return readStore().invoices;
+  }
+
+  async listByProjectId(projectId: string): Promise<Invoice[]> {
+    return readStore().invoices.filter((i) => i.projectId === projectId);
+  }
+
   async getDepositInvoice(projectId: string): Promise<Invoice | null> {
     return readStore().invoices.find((i) => i.projectId === projectId && i.type === "deposit") ?? null;
   }
@@ -214,14 +228,25 @@ export class InMemoryContentChecklistRepository implements ContentChecklistRepos
   }
 }
 
-export class InMemoryShareLinkRepository implements ShareLinkRepository {
-  constructor(private readonly links: ShareLink[] = SEED_SHARE_LINKS) {}
-
+/**
+ * File-backed (not static in-memory) because A05's "Copy client link" lazily
+ * creates a link the first time an agency user asks for one (see
+ * share-service.ts) — that write must be visible to the page render that
+ * displays it, which crosses the same route-handler/page-component boundary
+ * described on FileStoreProjectRepository above.
+ */
+export class FileStoreShareLinkRepository implements ShareLinkRepository {
   async findByToken(token: string): Promise<ShareLink | null> {
-    return this.links.find((l) => l.token === token) ?? null;
+    return readStore().shareLinks.find((l) => l.token === token) ?? null;
   }
 
   async findByProjectId(projectId: string): Promise<ShareLink | null> {
-    return this.links.find((l) => l.projectId === projectId) ?? null;
+    return readStore().shareLinks.find((l) => l.projectId === projectId) ?? null;
+  }
+
+  async create(link: ShareLink): Promise<void> {
+    const store = readStore();
+    store.shareLinks.push(link);
+    writeStore(store);
   }
 }

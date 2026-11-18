@@ -87,6 +87,8 @@ export const SEED_PROJECTS: Project[] = [
   {
     id: "proj-royal-trendsy",
     name: "Royal Trendsy website",
+    description:
+      "Design and build an ecommerce website for Royal Trendsy, including a product catalogue, checkout and responsive layouts.",
     projectType: "Website development",
     clientId: "royal-trendsy",
     clientName: "Royal Trendsy",
@@ -113,6 +115,7 @@ export const SEED_PROJECTS: Project[] = [
   {
     id: "proj-ashworth",
     name: "Ashworth Chambers website",
+    description: "A modern, professional website for Ashworth Chambers with a people directory and case studies.",
     projectType: "Website development",
     clientId: "ashworth-chambers",
     clientName: "Ashworth Chambers",
@@ -132,6 +135,7 @@ export const SEED_PROJECTS: Project[] = [
   {
     id: "proj-linden",
     name: "Linden Surveyors website",
+    description: "A lead-generating website for Linden Surveyors with an instant quote form and service area map.",
     projectType: "Website development",
     clientId: "linden-surveyors",
     clientName: "Linden Surveyors",

@@ -1,6 +1,6 @@
 import { briefRepository, proposalRepository, invoiceRepository, contentChecklistRepository, projectRepository } from "../repositories/container";
 import { requiredItemsAllAccepted } from "../domain/content";
-import { isInvoiceConfirmed } from "../domain/invoice";
+import { isInvoiceConfirmed, type Invoice } from "../domain/invoice";
 import { isLaunchChecklistComplete, type Project } from "../domain/project";
 import { canAdvance, type ProjectGateState } from "../domain/stage";
 
@@ -39,7 +39,27 @@ export async function tryAdvanceStageIfGated(project: Project): Promise<Project>
   if (result.allowed && result.nextStage) {
     const updated: Project = { ...project, stage: result.nextStage };
     await projectRepository.update(updated);
+    if (result.nextStage === "launch") await activateScheduledInvoices(project.id);
     return updated;
   }
   return project;
+}
+
+/**
+ * Flips every "scheduled" invoice on a project (the final payment created by
+ * createInvoicesFromPaymentSchedule — see invoice-service.ts) to "unpaid",
+ * due now. Lives here rather than in invoice-service.ts because it's a
+ * side-effect of the development -> launch transition, and invoice-service
+ * already imports tryAdvanceStageIfGated from this module — importing the
+ * other way back would be circular.
+ */
+export async function activateScheduledInvoices(projectId: string): Promise<void> {
+  const invoices = await invoiceRepository.listByProjectId(projectId);
+  const dueNow = new Date().toISOString().slice(0, 10);
+
+  for (const invoice of invoices) {
+    if (invoice.status !== "scheduled") continue;
+    const updated: Invoice = { ...invoice, status: "unpaid", dueDate: dueNow };
+    await invoiceRepository.update(updated);
+  }
 }

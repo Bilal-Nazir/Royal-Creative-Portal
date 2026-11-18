@@ -10,7 +10,7 @@ import {
   FileStoreInvoiceRepository,
   FileStoreCommentRepository,
   InMemoryContentChecklistRepository,
-  InMemoryShareLinkRepository,
+  FileStoreShareLinkRepository,
 } from "./in-memory/in-memory-repositories";
 
 /**
@@ -19,10 +19,11 @@ import {
  * needed to plug in persistence later — nothing in server/services or the
  * UI references a concrete repository class directly.
  *
- * Project/Brief/Proposal/Invoice/Comment/AcceptanceRecord are file-backed
- * (see storage/file-store.ts) because they're mutated by route handlers and
- * read by page Server Components, which Next.js does not share module state
- * between. The rest are never mutated, so a plain in-memory array is fine.
+ * Project/Brief/Proposal/Invoice/Comment/AcceptanceRecord/ShareLink are
+ * file-backed (see storage/file-store.ts) because they're mutated by route
+ * handlers and read by page Server Components, which Next.js does not share
+ * module state between. The rest are never mutated, so a plain in-memory
+ * array is fine.
  */
 export const userRepository = new InMemoryUserRepository();
 export const projectRepository = new FileStoreProjectRepository();
@@ -35,4 +36,4 @@ export const acceptanceRecordRepository = new FileStoreAcceptanceRecordRepositor
 export const invoiceRepository = new FileStoreInvoiceRepository();
 export const commentRepository = new FileStoreCommentRepository();
 export const contentChecklistRepository = new InMemoryContentChecklistRepository();
-export const shareLinkRepository = new InMemoryShareLinkRepository();
+export const shareLinkRepository = new FileStoreShareLinkRepository();

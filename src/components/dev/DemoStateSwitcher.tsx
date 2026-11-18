@@ -8,7 +8,7 @@ const ROYAL_TRENDSY_PROJECT_ID = "proj-royal-trendsy";
 
 const BRIEF_STATUSES = ["draft", "sent", "changes_requested", "approved"] as const;
 const PROPOSAL_STATUSES = ["draft", "sent", "changes_requested", "accepted"] as const;
-const INVOICE_STATUSES = ["unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"] as const;
+const INVOICE_STATUSES = ["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"] as const;
 
 /** Dev-only — renders nothing outside development. Targets Royal Trendsy specifically, per spec. */
 export function DemoStateSwitcher() {

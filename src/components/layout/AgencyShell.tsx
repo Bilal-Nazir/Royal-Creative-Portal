@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Logo } from "../ui/Logo";
 import { NavItem } from "../ui/NavItem";
 import { MobileNav } from "./MobileNav";
+import { ProjectJourney } from "./ProjectJourney";
+import type { Stage } from "@/server/domain/stage";
 
 const AGENCY_NAV_ITEMS = [
   { href: "/agency/dashboard", label: "Dashboard" },
@@ -12,7 +14,17 @@ const AGENCY_NAV_ITEMS = [
   { href: "/agency/settings", label: "Settings" },
 ];
 
-export function AgencyShell({ children }: { children: ReactNode }) {
+/** Brief/proposal/deposit are the only stage pages built on the agency side — see A16's deviation in DESIGN_NOTES. */
+const AGENCY_LINKABLE_STAGES: Stage[] = ["brief", "proposal", "deposit"];
+
+export interface AgencyShellProps {
+  children: ReactNode;
+  /** Shown as a "PROJECT JOURNEY" section in the sidebar when viewing a specific project (A16 and its stage pages). */
+  journeyStage?: Stage;
+  journeyProjectId?: string;
+}
+
+export function AgencyShell({ children, journeyStage, journeyProjectId }: AgencyShellProps) {
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <MobileNav
@@ -29,6 +41,17 @@ export function AgencyShell({ children }: { children: ReactNode }) {
             <NavItem key={item.href} href={item.href} label={item.label} />
           ))}
         </nav>
+        {journeyStage ? (
+          <>
+            <p className="text-xs text-ink-secondary">PROJECT JOURNEY</p>
+            <ProjectJourney
+              currentStage={journeyStage}
+              projectId={journeyProjectId}
+              basePath="/agency/projects"
+              linkableStages={AGENCY_LINKABLE_STAGES}
+            />
+          </>
+        ) : null}
         <p className="text-xs leading-relaxed text-ink-secondary">
           Royal Creative
           <br />

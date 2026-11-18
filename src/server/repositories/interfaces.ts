@@ -19,6 +19,7 @@ export interface ProjectRepository {
   listByAssigneeId(assigneeId: string): Promise<Project[]>;
   findById(id: string): Promise<Project | null>;
   update(project: Project): Promise<void>;
+  create(project: Project): Promise<void>;
 }
 
 export interface ActivityRepository {
@@ -53,6 +54,8 @@ export interface AcceptanceRecordRepository {
 }
 
 export interface InvoiceRepository {
+  listAll(): Promise<Invoice[]>;
+  listByProjectId(projectId: string): Promise<Invoice[]>;
   getDepositInvoice(projectId: string): Promise<Invoice | null>;
   findById(id: string): Promise<Invoice | null>;
   update(invoice: Invoice): Promise<void>;
@@ -70,4 +73,5 @@ export interface ContentChecklistRepository {
 export interface ShareLinkRepository {
   findByToken(token: string): Promise<ShareLink | null>;
   findByProjectId(projectId: string): Promise<ShareLink | null>;
+  create(link: ShareLink): Promise<void>;
 }

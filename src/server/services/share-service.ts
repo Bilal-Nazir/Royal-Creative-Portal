@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { shareLinkRepository, projectRepository } from "../repositories/container";
 import { getBriefForProject } from "./brief-service";
 import { assertAgencyCanManageProject } from "./permissions";
@@ -27,7 +28,7 @@ export async function getGuestBriefView(token: string): Promise<GuestBriefView |
   return { project, brief };
 }
 
-/** Agency-only: lets staff retrieve the guest share link for a project (e.g. to copy and send it). */
+/** Agency-only: lets staff retrieve the guest share link for a project (e.g. to copy and send it), creating one on first request. */
 export async function getShareLinkForProject(
   session: SessionPayload,
   projectId: string,
@@ -37,7 +38,18 @@ export async function getShareLinkForProject(
   const denied = assertAgencyCanManageProject<ShareLink>(session, project);
   if (denied) return denied;
 
-  const link = await shareLinkRepository.findByProjectId(projectId);
-  if (!link) return notFound("No share link exists for this project.");
+  const existing = await shareLinkRepository.findByProjectId(projectId);
+  if (existing) return ok(existing);
+
+  const now = new Date();
+  const expires = new Date(now);
+  expires.setDate(expires.getDate() + 60);
+  const link: ShareLink = {
+    token: `share-${projectId}-${randomUUID()}`,
+    projectId,
+    createdAt: now.toISOString(),
+    expiresAt: expires.toISOString(),
+  };
+  await shareLinkRepository.create(link);
   return ok(link);
 }

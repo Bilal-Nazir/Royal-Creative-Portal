@@ -204,6 +204,35 @@ export const SEED_COMMENTS: Comment[] = [
     body: "Can we make sure the FAQ page covers returns and sizing?",
     createdAt: "2026-10-30T15:00:00.000Z",
   },
+  // Internal (agency-only) notes use targetVersionId = projectId — there's one
+  // internal thread per project, not one per brief/proposal version.
+  {
+    id: "comment-royal-trendsy-internal-1",
+    projectId: "proj-royal-trendsy",
+    targetType: "internal",
+    targetVersionId: "proj-royal-trendsy",
+    authorId: "u-jerry",
+    authorName: "Jerry Royal",
+    body: "Discuss wholesale scope with Jerry before confirming.",
+    createdAt: "2026-10-29T09:00:00.000Z",
+  },
+];
+
+/**
+ * A04's client/contact selector (not in Figma — see DESIGN_NOTES). Every
+ * existing clientId needs an entry so "Create project" can target a real
+ * client. Keyed by the same clientId used throughout Project/User.
+ */
+export interface ClientDirectoryEntry {
+  clientId: string;
+  clientName: string;
+  contactName: string;
+}
+
+export const CLIENT_DIRECTORY: ClientDirectoryEntry[] = [
+  { clientId: "royal-trendsy", clientName: "Royal Trendsy", contactName: "Alex" },
+  { clientId: "ashworth-chambers", clientName: "Ashworth Chambers", contactName: "Clara Ashworth" },
+  { clientId: "linden-surveyors", clientName: "Linden Surveyors", contactName: "Tom Linden" },
 ];
 
 // Decision: content -> design requires every required item accepted. Royal

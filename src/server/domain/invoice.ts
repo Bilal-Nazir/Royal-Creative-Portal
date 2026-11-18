@@ -1,4 +1,9 @@
-export type InvoiceStatus = "unpaid" | "promised" | "unverified" | "partially_paid" | "paid" | "overdue";
+/**
+ * "scheduled" — created from the proposal's payment schedule but not yet
+ * due (e.g. the final payment, which only becomes due at the launch stage).
+ * Distinct from "unpaid" (due now, awaiting payment).
+ */
+export type InvoiceStatus = "scheduled" | "unpaid" | "promised" | "unverified" | "partially_paid" | "paid" | "overdue";
 export type InvoiceType = "deposit" | "progress" | "final";
 
 export interface Invoice {

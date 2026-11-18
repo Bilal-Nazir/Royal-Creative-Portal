@@ -29,6 +29,8 @@ export function isLaunchChecklistComplete(checklist: LaunchChecklistState): bool
 export interface Project {
   id: string;
   name: string;
+  /** Set at creation (A04) — what the project is about. Shown read-only on A16. */
+  description: string;
   projectType: string;
   clientId: string;
   clientName: string;
