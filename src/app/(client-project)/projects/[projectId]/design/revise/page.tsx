@@ -5,7 +5,7 @@ import { getCurrentDesignVersion, getPinCommentsForVersion, getRevisionRounds } 
 import { TopBar } from "@/components/layout/TopBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { SubmitRoundPanel } from "./submit-round-panel";
+import { RevisionRoundSubmitPanel } from "@/components/project/RevisionRoundSubmitPanel";
 
 export default async function SubmitRevisionRoundPage({ params }: { params: Promise<{ projectId: string }> }) {
   const session = await getSessionFromCookies();
@@ -37,9 +37,9 @@ export default async function SubmitRevisionRoundPage({ params }: { params: Prom
         title="Send your feedback to the team"
         description={`Your comments will be submitted together as Revision round ${rounds.length + 1}.`}
       />
-      <SubmitRoundPanel
-        projectId={projectId}
-        versionId={current.id}
+      <RevisionRoundSubmitPanel
+        apiPath={`/api/projects/${projectId}/design/versions/${current.id}/revision-rounds`}
+        overviewPath={`/projects/${projectId}/design`}
         versionLabel={`Design · Homepage Version ${current.versionNumber}`}
         nextRoundNumber={rounds.length + 1}
         comments={draftComments.map((c) => ({ id: c.id, number: c.number, title: c.title, body: c.body }))}

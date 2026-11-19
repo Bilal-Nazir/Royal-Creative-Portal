@@ -30,6 +30,12 @@ export interface DesignReviewWorkspaceProps {
   draftCount: number;
   /** Viewers (read-only role) can see pins and comments but not add, ask for changes, or approve. */
   readOnly?: boolean;
+  /** Overridden to `/api/projects/{id}/development` by the R08/R18/R19 development review reuse of this workspace. */
+  apiBasePath?: string;
+  /** Overridden to the development "ask for changes" route by the development reuse. */
+  reviseHref?: string;
+  /** "Approve design" (default) vs. R08/R19's "Approve for launch". */
+  approveLabel?: string;
 }
 
 /**
@@ -47,8 +53,12 @@ export function DesignReviewWorkspace({
   pins,
   draftCount,
   readOnly = false,
+  apiBasePath,
+  reviseHref,
+  approveLabel = "Approve design",
 }: DesignReviewWorkspaceProps) {
   const router = useRouter();
+  const basePath = apiBasePath ?? `/api/projects/${projectId}/design`;
   const [pendingPin, setPendingPin] = useState<{ xPercent: number; yPercent: number } | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftBody, setDraftBody] = useState("");
@@ -83,7 +93,7 @@ export function DesignReviewWorkspace({
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/design/versions/${versionId}/pins`, {
+      const response = await fetch(`${basePath}/versions/${versionId}/pins`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...pendingPin, title: draftTitle || undefined, body: draftBody }),
@@ -108,7 +118,7 @@ export function DesignReviewWorkspace({
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/design/versions/${versionId}/approve`, { method: "POST" });
+      const response = await fetch(`${basePath}/versions/${versionId}/approve`, { method: "POST" });
       const data = await response.json();
       if (!response.ok || !data.ok) {
         setError(data.error ?? "Couldn't approve this design.");
@@ -190,13 +200,13 @@ export function DesignReviewWorkspace({
               type="button"
               variant="primary"
               disabled={submitting || draftCount === 0}
-              onClick={() => router.push(`/projects/${projectId}/design/revise`)}
+              onClick={() => router.push(reviseHref ?? `/projects/${projectId}/design/revise`)}
               className="w-full"
             >
               Ask for changes
             </Button>
             <Button type="button" variant="secondary" disabled={submitting} onClick={handleApprove} className="w-full">
-              Approve design
+              {approveLabel}
             </Button>
           </>
         ) : (

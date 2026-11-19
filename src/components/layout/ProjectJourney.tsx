@@ -24,6 +24,9 @@ const STAGE_ROUTES: Partial<Record<Stage, string>> = {
   deposit: "deposit",
   content: "content",
   design: "design",
+  development: "development",
+  launch: "launch",
+  handover: "handover",
 };
 
 /**

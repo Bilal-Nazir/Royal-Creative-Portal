@@ -3,7 +3,16 @@ export type NotificationType =
   | "design_shared"
   | "revision_round_submitted"
   | "design_approved"
-  | "revision_round_assigned";
+  | "revision_round_assigned"
+  | "development_shared"
+  | "development_round_submitted"
+  | "build_approved"
+  | "final_invoice_due"
+  | "launch_scheduled"
+  | "website_live"
+  | "scope_change_sent"
+  | "scope_change_accepted"
+  | "scope_change_declined";
 
 /**
  * Recorded by services on key events (see notification-service.ts). No UI

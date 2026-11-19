@@ -18,6 +18,9 @@ export interface DesignReviewTabsProps {
   initialMessages: ChatMessageView[];
   viewerUserId: string;
   readOnly?: boolean;
+  apiBasePath?: string;
+  reviseHref?: string;
+  approveLabel?: string;
 }
 
 /**

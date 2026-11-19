@@ -11,6 +11,11 @@ const PROPOSAL_STATUSES = ["draft", "sent", "changes_requested", "accepted"] as 
 const INVOICE_STATUSES = ["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"] as const;
 const CONTENT_SCENARIOS = ["baseline", "images_submitted", "images_changes_requested"] as const;
 const DESIGN_SCENARIOS = ["none", "v1_shared", "v1_feedback_draft", "round1_submitted", "v2_ready", "approved"] as const;
+const DEVELOPMENT_SCENARIOS = ["none", "v1_shared", "v1_feedback_draft", "round1_submitted", "v2_ready", "approved"] as const;
+const LAUNCH_SCENARIOS = ["not_started", "checklist_in_progress", "checklist_complete"] as const;
+const FINAL_INVOICE_STATUSES = ["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"] as const;
+const HANDOVER_SCENARIOS = ["none", "resources_added"] as const;
+const SCOPE_CHANGE_SCENARIOS = ["none", "pending", "accepted", "declined"] as const;
 
 /** Dev-only — renders nothing outside development. Targets Royal Trendsy specifically, per spec. */
 export function DemoStateSwitcher() {
@@ -155,6 +160,101 @@ export function DemoStateSwitcher() {
                 Set design scenario…
               </option>
               {DESIGN_SCENARIOS.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Development scenario
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ developmentScenario: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set development scenario…
+              </option>
+              {DEVELOPMENT_SCENARIOS.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Launch scenario
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ launchScenario: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set launch scenario…
+              </option>
+              {LAUNCH_SCENARIOS.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Final invoice status
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ finalInvoiceStatus: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set final invoice status…
+              </option>
+              {FINAL_INVOICE_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Handover scenario
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ handoverScenario: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set handover scenario…
+              </option>
+              {HANDOVER_SCENARIOS.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Scope change scenario
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ scopeChangeScenario: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set scope change scenario…
+              </option>
+              {SCOPE_CHANGE_SCENARIOS.map((scenario) => (
                 <option key={scenario} value={scenario}>
                   {scenario}
                 </option>

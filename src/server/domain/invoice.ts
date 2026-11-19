@@ -4,7 +4,7 @@
  * Distinct from "unpaid" (due now, awaiting payment).
  */
 export type InvoiceStatus = "scheduled" | "unpaid" | "promised" | "unverified" | "partially_paid" | "paid" | "overdue";
-export type InvoiceType = "deposit" | "progress" | "final";
+export type InvoiceType = "deposit" | "progress" | "final" | "additional";
 
 export interface Invoice {
   id: string;

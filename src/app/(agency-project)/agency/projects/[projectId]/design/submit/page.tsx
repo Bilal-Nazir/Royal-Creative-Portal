@@ -6,7 +6,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { SubmitDesignForm } from "./submit-design-form";
+import { VersionSubmitForm } from "@/components/project/VersionSubmitForm";
 
 export default async function SubmitDesignPage({ params }: { params: Promise<{ projectId: string }> }) {
   const session = await getSessionFromCookies();
@@ -36,7 +36,23 @@ export default async function SubmitDesignPage({ params }: { params: Promise<{ p
         description={respondingToRound ? `This submission is linked to Design revision round ${respondingToRound.roundNumber}.` : undefined}
       />
       <Card className="flex flex-col gap-4 p-6">
-        <SubmitDesignForm projectId={projectId} respondsToRoundId={respondingToRound?.id} isRevision={isRevision} />
+        <VersionSubmitForm
+          projectId={projectId}
+          apiBasePath={`/api/projects/${projectId}/design`}
+          redirectPath={`/agency/projects/${projectId}/design`}
+          respondsToRoundId={respondingToRound?.id}
+          isRevision={isRevision}
+          linkLabel="Figma link"
+          linkPlaceholder="https://figma.com/design/…"
+          screenshotLabel="Review screenshots"
+          screenshotPlaceholder="Upload the desktop and mobile frames to review"
+          revisedScreenshotLabel="Updated review screenshots"
+          revisedScreenshotPlaceholder="Upload the revised desktop and mobile frames"
+          whatChangedLabel="What changed"
+          whatChangedPlaceholder="Reduced the hero heading and replaced the company description."
+          submitLabel="Share with client"
+          resubmitLabel="Submit revised design"
+        />
       </Card>
     </>
   );

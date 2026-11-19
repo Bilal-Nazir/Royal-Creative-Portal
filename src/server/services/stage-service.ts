@@ -10,23 +10,17 @@ import { requiredItemsAllAccepted } from "../domain/content";
 import { isInvoiceConfirmed, type Invoice } from "../domain/invoice";
 import { isLaunchChecklistComplete, type Project } from "../domain/project";
 import { canAdvance, type ProjectGateState } from "../domain/stage";
+import { notifyClient } from "./notification-service";
 
-/**
- * Computes the live gate state for a project from its brief/proposal/
- * invoice/content/design records. developmentApproved is always false —
- * this phase doesn't build the development approval screen (R19 etc.) or
- * its underlying record yet, so that one gate has nothing real to read
- * from. launchChecklistComplete is real (Project.launchChecklist exists)
- * even though no screen sets it yet, so the demo switcher and tests can
- * exercise it.
- */
+/** Computes the live gate state for a project from its brief/proposal/invoice/content/design/development records. */
 export async function computeGateState(project: Project): Promise<ProjectGateState> {
-  const [brief, proposal, invoice, contentItems, designVersion] = await Promise.all([
+  const [brief, proposal, invoice, contentItems, designVersion, developmentVersion] = await Promise.all([
     briefRepository.getCurrentVersion(project.id),
     proposalRepository.getCurrentVersion(project.id),
     invoiceRepository.getDepositInvoice(project.id),
     contentChecklistRepository.listByProjectId(project.id),
-    designVersionRepository.getCurrentVersion(project.id),
+    designVersionRepository.getCurrentVersion(project.id, "design"),
+    designVersionRepository.getCurrentVersion(project.id, "development"),
   ]);
 
   return {
@@ -35,7 +29,7 @@ export async function computeGateState(project: Project): Promise<ProjectGateSta
     depositConfirmed: invoice ? isInvoiceConfirmed(invoice) : false,
     requiredContentAccepted: requiredItemsAllAccepted(contentItems),
     designApproved: designVersion?.status === "approved",
-    developmentApproved: false,
+    developmentApproved: developmentVersion?.status === "approved",
     launchChecklistComplete: isLaunchChecklistComplete(project.launchChecklist),
   };
 }
@@ -64,10 +58,16 @@ export async function tryAdvanceStageIfGated(project: Project): Promise<Project>
 export async function activateScheduledInvoices(projectId: string): Promise<void> {
   const invoices = await invoiceRepository.listByProjectId(projectId);
   const dueNow = new Date().toISOString().slice(0, 10);
+  let activatedAny = false;
 
   for (const invoice of invoices) {
     if (invoice.status !== "scheduled") continue;
     const updated: Invoice = { ...invoice, status: "unpaid", dueDate: dueNow };
     await invoiceRepository.update(updated);
+    activatedAny = true;
+  }
+
+  if (activatedAny) {
+    await notifyClient(projectId, "final_invoice_due", "Final invoice due", "Your final invoice is now due.");
   }
 }

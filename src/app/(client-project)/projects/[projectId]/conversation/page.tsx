@@ -8,11 +8,18 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ChatPanel } from "@/components/project/ChatPanel";
 
-export default async function ProjectConversationPage({ params }: { params: Promise<{ projectId: string }> }) {
+export default async function ProjectConversationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ draft?: string }>;
+}) {
   const session = await getSessionFromCookies();
   if (!session || session.role !== "client") redirect("/sign-in");
 
   const { projectId } = await params;
+  const { draft } = await searchParams;
   const project = await projectRepository.findById(projectId);
   if (!project) redirect("/dashboard");
 
@@ -33,7 +40,7 @@ export default async function ProjectConversationPage({ params }: { params: Prom
         title="Keep the conversation with the work"
         description="Project messages and direct contact stay accessible during reviews."
       />
-      <ChatPanel projectId={projectId} initialMessages={messages} viewerUserId={session.userId} readOnly={!canAct(session)} />
+      <ChatPanel projectId={projectId} initialMessages={messages} viewerUserId={session.userId} readOnly={!canAct(session)} initialDraft={draft} />
     </>
   );
 }

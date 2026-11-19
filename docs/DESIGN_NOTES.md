@@ -577,3 +577,129 @@ for isolation. Vitest's default parallel-file execution raced two files'
 resets against each other once a second file (this phase's
 `content-design-service.test.ts`) started doing the same heavy mutation —
 `vitest.config.ts` now sets `fileParallelism: false`.
+
+# Design notes — Phase 2c (development, launch, handover, scope change)
+
+## `ReviewKind` generalizes the design review machinery instead of duplicating it
+
+`DesignVersion` and `RevisionRound` gained a `kind: "design" | "development"`
+discriminator rather than a parallel `DevelopmentVersion`/
+`DevelopmentRound` type pair. `DesignVersionRepository`/`RevisionRoundRepository`'s
+project-scoped reads (`listByProjectId`, `getCurrentVersion`) take a `kind`
+argument (defaulted to `"design"` in the service layer so every Phase 2b
+call site — and its tests — keeps compiling and behaving identically
+without being touched); functions that already operate on one fetched
+record (`findById`, `createPinComment`, `updateRevisionRoundTracking`,
+`setPinCommentStatus`) read `.kind` off that record instead. `shareDesignVersion`
+takes an explicit `kind` (nothing to read it from when creating version 1),
+and `submitRevisionRound`/`approveDesignVersion` branch on `version.kind`:
+development rounds have no revision-allowance concept at all (`overAllowance`
+is simply always `false`, no proposal lookup), and approving a development
+version additionally ticks the launch checklist's "Client approval" and
+re-checks the stage gate. `PinOverlay`, `ChatPanel` and `FileDropField`
+needed zero changes — they were already kind-agnostic. `DesignReviewWorkspace`/
+`DesignReviewTabs` gained three optional override props (`apiBasePath`,
+`reviseHref`, `approveLabel`) so the one workspace component serves both
+A10/R05/C12/R01/R06/R07 (design) and A11/C13/R08/R18/R19 (development)
+without a copy. The small per-page form components from Phase 2b
+(`SubmitDesignForm`, `TrackingForm`, `PinStatusSelect`, `SubmitRoundPanel`)
+were promoted into parametrized shared components (`VersionSubmitForm`,
+`RevisionTrackingForm`, `PinStatusSelect`, `RevisionRoundSubmitPanel` in
+`components/project/`) for the same reason — the design-side pages were
+updated to pass their existing paths/copy as explicit props, so their
+behavior is unchanged.
+
+Version/round ids now include `kind` (`${kind}-${projectId}-v${n}`,
+`revision-round-${kind}-${projectId}-${n}`) — without it, a design v1 and a
+development v1 for the same project would generate the same id and collide.
+
+## A11's development submit form requires a screenshot, like A10's
+
+The spec lists "review screenshots (required for pins)" for A11, so
+`shareDesignVersion` keeps its "at least one screenshot" check for both
+kinds — pins need an image to be placed on regardless of track.
+
+## A13's incomplete-checklist state has no Figma reference
+
+The only A13 Figma frame shows the "4 of 4 complete" / all-done state. The
+in-progress checklist (manual toggles for domain & hosting and quality
+checks, read-only "Complete"/"Pending" badges for client approval and
+final payment) is inferred from C14's equivalent readiness list and the
+existing list-item/Badge pattern used throughout (R04, R18). "Client
+approval" and "Final payment" are rejected if posted to the manual
+toggle endpoint (`updateLaunchChecklistItem`'s `item` type only accepts
+`domainHosting`/`qualityChecks`) — enforced in the service, not just
+hidden in the UI.
+
+## Launch date/live URL are editable independent of "Go live"
+
+C14's mock shows the agreed launch date already known while domain &
+hosting is still "In progress" (3 of 4 complete) — so A13 splits "save
+launch details" (`setLaunchDetails`, no gating) from "Go live"
+(`goLive`, gated on all 4 checks *and* both fields being set). Figma shows
+them as one card with one button; the two actions are exposed as two
+buttons on that same card.
+
+## Final balance payment and A13's handover resources: no Figma screens (explicit deviations)
+
+- **Final payment.** Figma has no checkout screen for the launch-stage
+  final balance. Reused the C08/C09/C10 deposit checkout pattern and the
+  mock `PaymentProvider`, with "final balance" wording instead of
+  "deposit" — new page at `/projects/{id}/final-payment`, new service
+  functions `payFinalInvoice`/`markFinalInvoicePaidManually`/`getFinalInvoice`
+  in `invoice-service.ts` (kept separate from the deposit-hardcoded
+  functions rather than generalizing them, to avoid any regression risk
+  to the already-shipped deposit flow). `DepositCheckoutForm`'s markup was
+  extracted into a shared, parametrized `PaymentCheckoutForm` so neither
+  copy ever drifts from the other. A new `InvoiceType = "additional"` and
+  a `tickFinalPaymentIfApplicable` helper (called from the final checkout,
+  manual marking, *and* A07's generic `setInvoiceStatus` quick-menu) keep
+  "final invoice paid → launch checklist's Final payment ticks" true from
+  every paid-marking path, not just the new ones.
+- **A13's "Handover resources" section.** No Figma screen for the agency
+  side at all (C15 is the only handover Figma frame, and it's client-only).
+  Built as a new card on A13 using the same add/list/remove pattern as
+  everything else on that page (`Field`/`Select`/`FileDropField`/`ListRow`).
+  Resource files reuse the `"content"` upload scope (not
+  `"design-screenshot"`, which only allows images) so a PDF guide can
+  actually be attached.
+
+## Scope change: no Figma screen for creation, on either side
+
+R09 (client review/accept/decline) is the only scope-change Figma frame.
+The creation form (title, description, additional fee, timeline impact) —
+reachable from R04/R18's "Flag for scope decision" (passing
+`flaggedFromRoundId`) or from project detail A16 (no round) — was built
+from scratch as `CreateScopeChangeForm`, reusing `Field`/`Textarea`/`Button`.
+R04's existing `flagRevisionRoundForScope` (which just stamps
+`scopeFlaggedAt` on an over-allowance design round) was left untouched and
+is now the gate in front of showing this form on R04; R18 has no allowance
+concept at all, so its "Flag for scope decision" button is unconditional.
+
+R09 keeps Figma's two buttons as-is: "Accept" (primary) records acceptance;
+"Discuss request" (secondary) does not decline — it opens the project
+conversation (`/projects/{id}/conversation?draft=...`) prefilled with a
+reference to the scope change, via a new `ChatPanel.initialDraft` prop.
+"Decline" is a small text-link below the two buttons, not one of Figma's
+named actions — Figma has no third control for it. Deviation: Figma's
+"Discuss request" copy doesn't literally describe "open the conversation,"
+but it's the closest fit to "discuss" of the three actions, and distinct
+from both deciding buttons.
+
+Accepting is guarded against double-processing (`status !== "pending"` →
+400) specifically so a retried/duplicate-clicked accept can never create a
+second "additional work" invoice — covered by
+`development-launch-service.test.ts`.
+
+## Demo-state switcher: three more scenario groups, one invoice-status override
+
+`designScenario`'s synthesizer was generalized into `applyReviewScenario(projectId, kind, scenario)`
+and reused as-is for a new `developmentScenario` (same five non-`none`
+states, "development" copy). Three more coarse scenario enums were added —
+`launchScenario` (not_started/checklist_in_progress/checklist_complete),
+`handoverScenario` (none/resources_added), `scopeChangeScenario`
+(none/pending/accepted/declined) — plus a `finalInvoiceStatus` override
+(creates the final invoice from the proposal's payment schedule if it
+doesn't exist yet, then sets its status directly) since reaching "final
+invoice unpaid" needs more than a stage flip. All follow the existing
+"wipe and rebuild" convention.

@@ -12,6 +12,8 @@ import type { DesignVersion, DesignPinComment, RevisionRound } from "../domain/d
 import type { ProjectMessage } from "../domain/message";
 import type { Notification } from "../domain/notification";
 import type { UploadedFile } from "../domain/upload";
+import type { ScopeChange } from "../domain/scope-change";
+import type { HandoverResource } from "../domain/handover-resource";
 import { SEED_PROJECTS } from "../repositories/in-memory/seed-data";
 import {
   SEED_BRIEF_VERSIONS,
@@ -46,6 +48,8 @@ export interface StoreShape {
   projectMessages: ProjectMessage[];
   notifications: Notification[];
   uploadedFiles: UploadedFile[];
+  scopeChanges: ScopeChange[];
+  handoverResources: HandoverResource[];
 }
 
 const STORE_PATH = join(process.cwd(), ".data", "phase2a-store.json");
@@ -70,6 +74,8 @@ function seedStore(): StoreShape {
       projectMessages: SEED_PROJECT_MESSAGES,
       notifications: SEED_NOTIFICATIONS,
       uploadedFiles: SEED_UPLOADED_FILES,
+      scopeChanges: [],
+      handoverResources: [],
     }),
   );
 }

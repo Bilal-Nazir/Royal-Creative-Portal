@@ -11,18 +11,25 @@ import { tryAdvanceStageIfGated } from "./stage-service";
 import { notifyClient, notifyAgency, notifyAssignee } from "./notification-service";
 import { isOverRevisionAllowance, PIN_TITLE_MAX_LENGTH } from "../domain/design";
 import type { SessionPayload } from "../auth/session";
-import type { DesignVersion, DesignPinComment, RevisionRound, PinCommentStatus, RevisionRoundWorkflowStatus } from "../domain/design";
+import type {
+  DesignVersion,
+  DesignPinComment,
+  RevisionRound,
+  PinCommentStatus,
+  RevisionRoundWorkflowStatus,
+  ReviewKind,
+} from "../domain/design";
 
-export async function getDesignVersions(projectId: string): Promise<DesignVersion[]> {
-  return designVersionRepository.listByProjectId(projectId);
+export async function getDesignVersions(projectId: string, kind: ReviewKind = "design"): Promise<DesignVersion[]> {
+  return designVersionRepository.listByProjectId(projectId, kind);
 }
 
-export async function getCurrentDesignVersion(projectId: string): Promise<DesignVersion | null> {
-  return designVersionRepository.getCurrentVersion(projectId);
+export async function getCurrentDesignVersion(projectId: string, kind: ReviewKind = "design"): Promise<DesignVersion | null> {
+  return designVersionRepository.getCurrentVersion(projectId, kind);
 }
 
-export async function getRevisionRounds(projectId: string): Promise<RevisionRound[]> {
-  return revisionRoundRepository.listByProjectId(projectId);
+export async function getRevisionRounds(projectId: string, kind: ReviewKind = "design"): Promise<RevisionRound[]> {
+  return revisionRoundRepository.listByProjectId(projectId, kind);
 }
 
 /**
@@ -36,6 +43,7 @@ export async function getPinCommentsForVersion(versionId: string, viewerUserId: 
 }
 
 export interface ShareDesignVersionInput {
+  kind?: ReviewKind;
   figmaLink: string;
   screenshotFileIds: string[];
   message?: string;
@@ -43,7 +51,12 @@ export interface ShareDesignVersionInput {
   respondsToRoundId?: string;
 }
 
-/** A10 (version 1) and R05 (version 2+) — both create the next version; R05 additionally sets whatChanged/respondsToRoundId. */
+/**
+ * A10/R05 (design, version 1 / 2+) and A11/R18 (development, "staging link"
+ * held in the same figmaLink field / "changes completed" in whatChanged) —
+ * both create the next version for their kind; kind defaults to "design" so
+ * every existing design call site is unaffected.
+ */
 export async function shareDesignVersion(
   session: SessionPayload,
   projectId: string,
@@ -54,18 +67,20 @@ export async function shareDesignVersion(
   const denied = assertAgencyCanManageProject<DesignVersion>(session, project);
   if (denied) return denied;
 
+  const kind: ReviewKind = input.kind ?? "design";
   if (input.screenshotFileIds.length === 0) {
     return badRequest("At least one review screenshot is required.");
   }
 
-  const current = await designVersionRepository.getCurrentVersion(projectId);
+  const current = await designVersionRepository.getCurrentVersion(projectId, kind);
   if (current) {
     await designVersionRepository.update({ ...current, status: "superseded" });
   }
 
   const version: DesignVersion = {
-    id: `design-${projectId}-v${(current?.versionNumber ?? 0) + 1}`,
+    id: `${kind}-${projectId}-v${(current?.versionNumber ?? 0) + 1}`,
     projectId,
+    kind,
     versionNumber: (current?.versionNumber ?? 0) + 1,
     figmaLink: input.figmaLink,
     screenshotFileIds: input.screenshotFileIds,
@@ -77,7 +92,16 @@ export async function shareDesignVersion(
     status: "shared",
   };
   await designVersionRepository.create(version);
-  await notifyClient(projectId, "design_shared", "Design shared", `${session.name} shared Version ${version.versionNumber} for review.`);
+  if (kind === "development") {
+    await notifyClient(
+      projectId,
+      "development_shared",
+      "Development shared",
+      `${session.name} shared Build Version ${version.versionNumber} for review.`,
+    );
+  } else {
+    await notifyClient(projectId, "design_shared", "Design shared", `${session.name} shared Version ${version.versionNumber} for review.`);
+  }
   return ok(version);
 }
 
@@ -143,22 +167,29 @@ export async function submitRevisionRound(
   const draftComments = allComments.filter((c) => c.isDraft && c.authorId === session.userId);
   if (draftComments.length === 0) return badRequest("Add at least one comment before submitting a revision round.");
 
-  const existingRounds = await revisionRoundRepository.listByProjectId(projectId);
+  const kind = version.kind;
+  const existingRounds = await revisionRoundRepository.listByProjectId(projectId, kind);
   const roundNumber = existingRounds.length + 1;
 
-  const proposal = await proposalRepository.getCurrentVersion(projectId);
-  const includedRevisionRounds = proposal?.includedRevisionRounds ?? 0;
+  // Development has no revision allowance — it's tracked separately from
+  // design rounds with no over-allowance concept at all (see Phase 2c spec).
+  let overAllowance = false;
+  if (kind === "design") {
+    const proposal = await proposalRepository.getCurrentVersion(projectId);
+    overAllowance = isOverRevisionAllowance(roundNumber, proposal?.includedRevisionRounds ?? 0);
+  }
 
   const round: RevisionRound = {
-    id: `revision-round-${projectId}-${roundNumber}`,
+    id: `revision-round-${kind}-${projectId}-${roundNumber}`,
     projectId,
+    kind,
     designVersionId: versionId,
     roundNumber,
     commentIds: draftComments.map((c) => c.id),
     submittedByName: session.name,
     submittedAt: new Date().toISOString(),
     workflowStatus: "submitted",
-    overAllowance: isOverRevisionAllowance(roundNumber, includedRevisionRounds),
+    overAllowance,
   };
   await revisionRoundRepository.create(round);
 
@@ -166,16 +197,30 @@ export async function submitRevisionRound(
     await designPinCommentRepository.update({ ...comment, isDraft: false });
   }
 
-  await notifyAgency(
-    projectId,
-    "revision_round_submitted",
-    "Revision round submitted",
-    `${session.name} submitted Revision round ${roundNumber} (${draftComments.length} comments) on Version ${version.versionNumber}.`,
-  );
+  if (kind === "development") {
+    await notifyAgency(
+      projectId,
+      "development_round_submitted",
+      "Development feedback submitted",
+      `${session.name} submitted Development revision round ${roundNumber} (${draftComments.length} comments) on Build Version ${version.versionNumber}.`,
+    );
+  } else {
+    await notifyAgency(
+      projectId,
+      "revision_round_submitted",
+      "Revision round submitted",
+      `${session.name} submitted Revision round ${roundNumber} (${draftComments.length} comments) on Version ${version.versionNumber}.`,
+    );
+  }
   return ok(round);
 }
 
-/** R07 — records the approver, timestamp and version, then the design -> development gate (computed in stage-service) is satisfied. */
+/**
+ * R07 (design -> development gate) and R19 (development -> launch gate) —
+ * records the approver, timestamp and version. A development approval
+ * additionally ticks "Client approval" on the launch checklist before the
+ * stage gate (computed in stage-service) is re-checked.
+ */
 export async function approveDesignVersion(
   session: SessionPayload,
   projectId: string,
@@ -197,12 +242,20 @@ export async function approveDesignVersion(
     approvedAt: new Date().toISOString(),
   };
   await designVersionRepository.update(updated);
-  await notifyAgency(projectId, "design_approved", "Design approved", `${session.name} approved Version ${version.versionNumber}.`);
-  await tryAdvanceStageIfGated(project);
+
+  if (version.kind === "development") {
+    const updatedProject = { ...project, launchChecklist: { ...project.launchChecklist, clientApproval: true } };
+    await projectRepository.update(updatedProject);
+    await notifyAgency(projectId, "build_approved", "Build approved", `${session.name} approved Build Version ${version.versionNumber} for launch.`);
+    await tryAdvanceStageIfGated(updatedProject);
+  } else {
+    await notifyAgency(projectId, "design_approved", "Design approved", `${session.name} approved Version ${version.versionNumber}.`);
+    await tryAdvanceStageIfGated(project);
+  }
   return ok(updated);
 }
 
-/** R04 — agency-only tracking fields on a revision round: assignee, target date, overall workflow status. */
+/** R04/R18 — agency-only tracking fields on a revision round: assignee, target date, overall workflow status. */
 export async function updateRevisionRoundTracking(
   session: SessionPayload,
   projectId: string,

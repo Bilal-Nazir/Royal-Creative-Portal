@@ -1,7 +1,7 @@
 import { invoiceRepository, projectRepository } from "../repositories/container";
 import { paymentProvider } from "../payments/mock-provider";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
-import { ok, notFound, type ServiceResult } from "./result";
+import { ok, badRequest, notFound, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";
 import type { SessionPayload } from "../auth/session";
 import type { Invoice, InvoiceStatus, InvoiceType } from "../domain/invoice";
@@ -10,6 +10,27 @@ import type { PaymentScheduleItem } from "../domain/proposal";
 
 export async function getDepositInvoice(projectId: string): Promise<Invoice | null> {
   return invoiceRepository.getDepositInvoice(projectId);
+}
+
+/** Launch's final payment (no Figma screen — see DESIGN_NOTES for the logged deviation reusing the deposit checkout pattern). */
+export async function getFinalInvoice(projectId: string): Promise<Invoice | null> {
+  const invoices = await invoiceRepository.listByProjectId(projectId);
+  return invoices.find((i) => i.type === "final") ?? null;
+}
+
+/**
+ * Centralizes "a final invoice was just marked paid -> tick the launch
+ * checklist's Final payment check" so every paid-marking path (the final
+ * checkout below, manual marking, and A07's generic setInvoiceStatus) drives
+ * the same checklist state. Idempotent: a no-op if already ticked, so this
+ * can be called from multiple paid-marking paths without side effects piling
+ * up or the launch gate flickering.
+ */
+async function tickFinalPaymentIfApplicable(invoice: Invoice, project: Project): Promise<Project> {
+  if (invoice.type !== "final" || project.launchChecklist.finalPayment) return project;
+  const updated: Project = { ...project, launchChecklist: { ...project.launchChecklist, finalPayment: true } };
+  await projectRepository.update(updated);
+  return updated;
 }
 
 /**
@@ -121,6 +142,77 @@ export async function payDeposit(
   return ok({ invoice: updated, charged: false, errorMessage: result.errorMessage });
 }
 
+export interface PayFinalInvoiceOutcome {
+  invoice: Invoice;
+  charged: boolean;
+  errorMessage?: string;
+}
+
+/** Final balance checkout (deviation: reuses the C08/C09/C10 deposit checkout pattern — no Figma screen for this). */
+export async function payFinalInvoice(
+  session: SessionPayload,
+  projectId: string,
+  simulateOutcome: "success" | "failure",
+): Promise<ServiceResult<PayFinalInvoiceOutcome>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+  const denied = assertClientCanActOnProject<PayFinalInvoiceOutcome>(session, project);
+  if (denied) return denied;
+
+  const invoice = await getFinalInvoice(projectId);
+  if (!invoice) return notFound("Final invoice not found.");
+  if (invoice.status === "scheduled") return badRequest("The final invoice is not due yet.");
+
+  const result = await paymentProvider.charge({
+    amount: invoice.amount,
+    description: `Final balance for ${project.name}`,
+    simulateOutcome,
+  });
+
+  if (result.ok) {
+    const updated: Invoice = {
+      ...invoice,
+      status: "paid",
+      paidAt: new Date().toISOString(),
+      paymentMethod: "card",
+      lastFailureReason: undefined,
+    };
+    await invoiceRepository.update(updated);
+    const updatedProject = await tickFinalPaymentIfApplicable(updated, project);
+    await tryAdvanceStageIfGated(updatedProject);
+    return ok({ invoice: updated, charged: true });
+  }
+
+  const updated: Invoice = { ...invoice, lastFailureReason: result.errorMessage };
+  await invoiceRepository.update(updated);
+  return ok({ invoice: updated, charged: false, errorMessage: result.errorMessage });
+}
+
+/** Agency-only: records a final-balance transfer received outside the mock checkout. */
+export async function markFinalInvoicePaidManually(session: SessionPayload, projectId: string): Promise<ServiceResult<Invoice>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+  const denied = assertAgencyCanManageProject<Invoice>(session, project);
+  if (denied) return denied;
+
+  const invoice = await getFinalInvoice(projectId);
+  if (!invoice) return notFound("Final invoice not found.");
+
+  const updated: Invoice = {
+    ...invoice,
+    status: "paid",
+    paidAt: new Date().toISOString(),
+    paymentMethod: "manual",
+    verifiedByUserId: session.userId,
+    verifiedByName: session.name,
+    verifiedAt: new Date().toISOString(),
+  };
+  await invoiceRepository.update(updated);
+  const updatedProject = await tickFinalPaymentIfApplicable(updated, project);
+  await tryAdvanceStageIfGated(updatedProject);
+  return ok(updated);
+}
+
 /** R11 — a client promise to pay by a future date. Does not satisfy the deposit -> content gate. */
 export async function choosePaymentDate(
   session: SessionPayload,
@@ -206,7 +298,10 @@ export async function setInvoiceStatus(
     ...(status === "paid" ? { paidAt: new Date().toISOString() } : {}),
   };
   await invoiceRepository.update(updated);
-  if (status === "paid") await tryAdvanceStageIfGated(project);
+  if (status === "paid") {
+    const updatedProject = await tickFinalPaymentIfApplicable(updated, project);
+    await tryAdvanceStageIfGated(updatedProject);
+  }
   return ok(updated);
 }
 

@@ -7,10 +7,12 @@ import type { Invoice } from "../domain/invoice";
 import type { Comment, CommentTargetType } from "../domain/comment";
 import type { ContentChecklistItem, ContentSubmission } from "../domain/content";
 import type { ShareLink } from "../domain/share-link";
-import type { DesignVersion, DesignPinComment, RevisionRound } from "../domain/design";
+import type { DesignVersion, DesignPinComment, RevisionRound, ReviewKind } from "../domain/design";
 import type { ProjectMessage } from "../domain/message";
 import type { Notification } from "../domain/notification";
 import type { UploadedFile } from "../domain/upload";
+import type { ScopeChange } from "../domain/scope-change";
+import type { HandoverResource } from "../domain/handover-resource";
 
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
@@ -90,8 +92,8 @@ export interface ShareLinkRepository {
 }
 
 export interface DesignVersionRepository {
-  listByProjectId(projectId: string): Promise<DesignVersion[]>;
-  getCurrentVersion(projectId: string): Promise<DesignVersion | null>;
+  listByProjectId(projectId: string, kind: ReviewKind): Promise<DesignVersion[]>;
+  getCurrentVersion(projectId: string, kind: ReviewKind): Promise<DesignVersion | null>;
   findById(id: string): Promise<DesignVersion | null>;
   create(version: DesignVersion): Promise<void>;
   update(version: DesignVersion): Promise<void>;
@@ -105,10 +107,24 @@ export interface DesignPinCommentRepository {
 }
 
 export interface RevisionRoundRepository {
-  listByProjectId(projectId: string): Promise<RevisionRound[]>;
+  listByProjectId(projectId: string, kind: ReviewKind): Promise<RevisionRound[]>;
   findById(id: string): Promise<RevisionRound | null>;
   create(round: RevisionRound): Promise<void>;
   update(round: RevisionRound): Promise<void>;
+}
+
+export interface ScopeChangeRepository {
+  listByProjectId(projectId: string): Promise<ScopeChange[]>;
+  findById(id: string): Promise<ScopeChange | null>;
+  create(scopeChange: ScopeChange): Promise<void>;
+  update(scopeChange: ScopeChange): Promise<void>;
+}
+
+export interface HandoverResourceRepository {
+  listByProjectId(projectId: string): Promise<HandoverResource[]>;
+  findById(id: string): Promise<HandoverResource | null>;
+  create(resource: HandoverResource): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 export interface ProjectMessageRepository {

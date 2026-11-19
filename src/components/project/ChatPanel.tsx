@@ -20,12 +20,22 @@ export interface ChatPanelProps {
   compact?: boolean;
   readOnly?: boolean;
   pollIntervalMs?: number;
+  /** R09's "Discuss request" prefills the message box with a reference to the scope change. */
+  initialDraft?: string;
 }
 
 /** R10/R12 — simple per-project chat, refreshed by polling (no websocket in this phase). */
-export function ChatPanel({ projectId, initialMessages, viewerUserId, compact = false, readOnly = false, pollIntervalMs = 5000 }: ChatPanelProps) {
+export function ChatPanel({
+  projectId,
+  initialMessages,
+  viewerUserId,
+  compact = false,
+  readOnly = false,
+  pollIntervalMs = 5000,
+  initialDraft = "",
+}: ChatPanelProps) {
   const [messages, setMessages] = useState(initialMessages);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(initialDraft);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

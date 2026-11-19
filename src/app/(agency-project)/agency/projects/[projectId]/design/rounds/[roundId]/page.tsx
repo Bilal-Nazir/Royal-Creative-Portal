@@ -10,9 +10,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { TrackingForm } from "./tracking-form";
-import { PinStatusSelect } from "./pin-status-select";
+import { RevisionTrackingForm } from "@/components/project/RevisionTrackingForm";
+import { PinStatusSelect } from "@/components/project/PinStatusSelect";
 import { FlagScopeButton } from "./flag-scope-button";
+import { CreateScopeChangeForm } from "@/components/project/CreateScopeChangeForm";
 
 export default async function RevisionRoundDetailPage({ params }: { params: Promise<{ projectId: string; roundId: string }> }) {
   const session = await getSessionFromCookies();
@@ -52,9 +53,8 @@ export default async function RevisionRoundDetailPage({ params }: { params: Prom
 
       <Card className="flex flex-col gap-4 p-6">
         <h2 className="font-heading text-xl font-semibold text-ink">Tracked work</h2>
-        <TrackingForm
-          projectId={projectId}
-          roundId={round.id}
+        <RevisionTrackingForm
+          apiPath={`/api/projects/${projectId}/design/revision-rounds/${round.id}/tracking`}
           assignees={assignees}
           initialAssigneeId={round.assigneeId}
           initialTargetDate={round.targetDate}
@@ -70,7 +70,7 @@ export default async function RevisionRoundDetailPage({ params }: { params: Prom
               <p className="text-[13px] font-medium text-ink">{pinLabel(comment)}</p>
               <p className="text-xs text-ink-secondary">{comment.body}</p>
             </div>
-            <PinStatusSelect projectId={projectId} pinId={comment.id} initialStatus={comment.status} />
+            <PinStatusSelect apiPath={`/api/projects/${projectId}/design/pins/${comment.id}/status`} initialStatus={comment.status} />
           </div>
         ))}
       </Card>
@@ -84,7 +84,10 @@ export default async function RevisionRoundDetailPage({ params }: { params: Prom
               it&apos;s over the allowance. This doesn&apos;t block the work; flag it for a separate scope decision.
             </p>
             {round.scopeFlaggedAt ? (
-              <Badge tone="warning">Flagged for scope decision</Badge>
+              <>
+                <Badge tone="warning">Flagged for scope decision</Badge>
+                <CreateScopeChangeForm projectId={projectId} roundId={round.id} />
+              </>
             ) : (
               <FlagScopeButton projectId={projectId} roundId={round.id} />
             )}

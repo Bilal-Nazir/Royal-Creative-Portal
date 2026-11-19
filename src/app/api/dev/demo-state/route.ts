@@ -11,6 +11,11 @@ const bodySchema = z.object({
   invoiceStatus: z.enum(["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"]).optional(),
   contentScenario: z.enum(["baseline", "images_submitted", "images_changes_requested"]).optional(),
   designScenario: z.enum(["none", "v1_shared", "v1_feedback_draft", "round1_submitted", "v2_ready", "approved"]).optional(),
+  developmentScenario: z.enum(["none", "v1_shared", "v1_feedback_draft", "round1_submitted", "v2_ready", "approved"]).optional(),
+  launchScenario: z.enum(["not_started", "checklist_in_progress", "checklist_complete"]).optional(),
+  finalInvoiceStatus: z.enum(["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"]).optional(),
+  handoverScenario: z.enum(["none", "resources_added"]).optional(),
+  scopeChangeScenario: z.enum(["none", "pending", "accepted", "declined"]).optional(),
 });
 
 // No session check here — NODE_ENV === "development" below is the only gate.

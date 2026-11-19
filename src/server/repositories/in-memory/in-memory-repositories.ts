@@ -18,6 +18,8 @@ import type {
   ProjectMessageRepository,
   NotificationRepository,
   UploadedFileRepository,
+  ScopeChangeRepository,
+  HandoverResourceRepository,
 } from "../interfaces";
 import type { User } from "../../domain/user";
 import type { Project, ActivityItem, AttentionTask } from "../../domain/project";
@@ -28,10 +30,12 @@ import type { Invoice } from "../../domain/invoice";
 import type { Comment, CommentTargetType } from "../../domain/comment";
 import type { ContentChecklistItem, ContentSubmission } from "../../domain/content";
 import type { ShareLink } from "../../domain/share-link";
-import type { DesignVersion, DesignPinComment, RevisionRound } from "../../domain/design";
+import type { DesignVersion, DesignPinComment, RevisionRound, ReviewKind } from "../../domain/design";
 import type { ProjectMessage } from "../../domain/message";
 import type { Notification } from "../../domain/notification";
 import type { UploadedFile } from "../../domain/upload";
+import type { ScopeChange } from "../../domain/scope-change";
+import type { HandoverResource } from "../../domain/handover-resource";
 import { SEED_USERS, SEED_PROJECTS, SEED_ACTIVITIES, SEED_ATTENTION_TASKS, SEED_AGENCY_OVERVIEW } from "./seed-data";
 import { readStore, writeStore } from "../../storage/file-store";
 
@@ -280,14 +284,14 @@ export class FileStoreContentSubmissionRepository implements ContentSubmissionRe
 }
 
 export class FileStoreDesignVersionRepository implements DesignVersionRepository {
-  async listByProjectId(projectId: string): Promise<DesignVersion[]> {
+  async listByProjectId(projectId: string, kind: ReviewKind): Promise<DesignVersion[]> {
     return readStore()
-      .designVersions.filter((v) => v.projectId === projectId)
+      .designVersions.filter((v) => v.projectId === projectId && v.kind === kind)
       .sort((a, b) => a.versionNumber - b.versionNumber);
   }
 
-  async getCurrentVersion(projectId: string): Promise<DesignVersion | null> {
-    const versions = readStore().designVersions.filter((v) => v.projectId === projectId);
+  async getCurrentVersion(projectId: string, kind: ReviewKind): Promise<DesignVersion | null> {
+    const versions = readStore().designVersions.filter((v) => v.projectId === projectId && v.kind === kind);
     if (versions.length === 0) return null;
     return versions.reduce((latest, v) => (v.versionNumber > latest.versionNumber ? v : latest));
   }
@@ -338,9 +342,9 @@ export class FileStoreDesignPinCommentRepository implements DesignPinCommentRepo
 }
 
 export class FileStoreRevisionRoundRepository implements RevisionRoundRepository {
-  async listByProjectId(projectId: string): Promise<RevisionRound[]> {
+  async listByProjectId(projectId: string, kind: ReviewKind): Promise<RevisionRound[]> {
     return readStore()
-      .revisionRounds.filter((r) => r.projectId === projectId)
+      .revisionRounds.filter((r) => r.projectId === projectId && r.kind === kind)
       .sort((a, b) => a.roundNumber - b.roundNumber);
   }
 
@@ -397,6 +401,56 @@ export class FileStoreUploadedFileRepository implements UploadedFileRepository {
   async create(file: UploadedFile): Promise<void> {
     const store = readStore();
     store.uploadedFiles.push(file);
+    writeStore(store);
+  }
+}
+
+export class FileStoreScopeChangeRepository implements ScopeChangeRepository {
+  async listByProjectId(projectId: string): Promise<ScopeChange[]> {
+    return readStore()
+      .scopeChanges.filter((s) => s.projectId === projectId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
+  async findById(id: string): Promise<ScopeChange | null> {
+    return readStore().scopeChanges.find((s) => s.id === id) ?? null;
+  }
+
+  async create(scopeChange: ScopeChange): Promise<void> {
+    const store = readStore();
+    store.scopeChanges.push(scopeChange);
+    writeStore(store);
+  }
+
+  async update(scopeChange: ScopeChange): Promise<void> {
+    const store = readStore();
+    const index = store.scopeChanges.findIndex((s) => s.id === scopeChange.id);
+    if (index === -1) return;
+    store.scopeChanges[index] = scopeChange;
+    writeStore(store);
+  }
+}
+
+export class FileStoreHandoverResourceRepository implements HandoverResourceRepository {
+  async listByProjectId(projectId: string): Promise<HandoverResource[]> {
+    return readStore()
+      .handoverResources.filter((r) => r.projectId === projectId)
+      .sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
+  }
+
+  async findById(id: string): Promise<HandoverResource | null> {
+    return readStore().handoverResources.find((r) => r.id === id) ?? null;
+  }
+
+  async create(resource: HandoverResource): Promise<void> {
+    const store = readStore();
+    store.handoverResources.push(resource);
+    writeStore(store);
+  }
+
+  async delete(id: string): Promise<void> {
+    const store = readStore();
+    store.handoverResources = store.handoverResources.filter((r) => r.id !== id);
     writeStore(store);
   }
 }

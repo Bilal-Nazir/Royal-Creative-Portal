@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 const STATUSES = ["open", "in_progress", "resolved"] as const;
 
-export function PinStatusSelect({ projectId, pinId, initialStatus }: { projectId: string; pinId: string; initialStatus: string }) {
+export function PinStatusSelect({ apiPath, initialStatus }: { apiPath: string; initialStatus: string }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [submitting, setSubmitting] = useState(false);
@@ -14,7 +14,7 @@ export function PinStatusSelect({ projectId, pinId, initialStatus }: { projectId
     setStatus(next);
     setSubmitting(true);
     try {
-      await fetch(`/api/projects/${projectId}/design/pins/${pinId}/status`, {
+      await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next }),

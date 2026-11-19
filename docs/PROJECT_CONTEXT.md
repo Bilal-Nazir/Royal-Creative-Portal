@@ -14,13 +14,18 @@ src/
     (auth)/sign-in            shared C16/C17 sign-in, ?variant= and ?returnTo=
     (client)/                 dashboard, messages, files, payments — no per-project sidebar
     (client-project)/projects/[projectId]/
-                               brief, proposal, deposit + sub-actions — own layout injects
-                               the "PROJECT JOURNEY" sidebar via ClientShell(journeyStage)
+                               brief, proposal, deposit, design(+revise), development(+revise),
+                               launch, handover, scope-changes, final-payment + sub-actions —
+                               own layout injects the "PROJECT JOURNEY" sidebar via
+                               ClientShell(journeyStage)
     (agency)/agency/           dashboard, projects (board), projects/new, payments, contacts, etc.
     (agency-project)/agency/projects/[projectId]/
                                project detail, brief, proposal, deposit, content, design
-                               (hub/submit/rounds/[roundId]), conversation — own layout
-                               injects the "PROJECT JOURNEY" sidebar via AgencyShell(journeyStage)
+                               (hub/submit/rounds/[roundId]), development (hub/submit/
+                               rounds/[roundId]), launch (checklist + handover resources —
+                               no separate agency handover route, see DESIGN_NOTES),
+                               conversation — own layout injects the "PROJECT JOURNEY"
+                               sidebar via AgencyShell(journeyStage)
     api/                       thin route handlers — parse input, call a service, map
                                ServiceResult to an HTTP status. No business logic here.
     api/files/                 upload (multipart) + [fileId] (authorized download, never public)
@@ -39,7 +44,9 @@ src/
     dev/DemoStateSwitcher.tsx  dev-only, see below
   server/
     domain/                    plain types + pure functions (stage.ts, brief.ts, invoice.ts,
-                               content.ts, design.ts, message.ts, notification.ts, upload.ts...)
+                               content.ts, design.ts [ReviewKind: design|development],
+                               scope-change.ts, handover-resource.ts, message.ts,
+                               notification.ts, upload.ts...)
     repositories/               interfaces.ts + in-memory/ impls + container.ts (DI point)
     services/                  business rules + permission checks; return ServiceResult<T>
     auth/                       session (jose), password hashing, cookies, share tokens
@@ -64,9 +71,11 @@ Two tiers:
   entity that gets mutated by one Next.js "layer" (a route handler) and read
   by another (a page Server Component): Project, BriefVersion,
   ProposalVersion, Invoice, Comment, AcceptanceRecord, ShareLink,
-  ContentChecklistItem, ContentSubmission, DesignVersion, DesignPinComment,
-  RevisionRound, ProjectMessage, Notification, UploadedFile (metadata only —
-  bytes live in `.data/uploads/`, see `storage/storage-provider.ts`).
+  ContentChecklistItem, ContentSubmission, DesignVersion (kind: design or
+  development — one track, not two parallel collections), DesignPinComment,
+  RevisionRound (also kind-discriminated), ProjectMessage, Notification,
+  UploadedFile (metadata only — bytes live in `.data/uploads/`, see
+  `storage/storage-provider.ts`), ScopeChange, HandoverResource.
 
 **Why the file.** Next.js compiles Route Handlers and page Server Components
 into separate module/VM contexts that do not share state — not even via
@@ -93,17 +102,36 @@ the next read reseeds it).
   `status === "accepted"`. The one `forceable` transition — an agency
   owner/admin/assigned member can force it (`forceAdvanceContentToDesign`,
   wired to the UI on A09), recorded on `Project.forcedAdvances`.
-- **`design → development`** requires the project's current `DesignVersion`
-  to have `status === "approved"` (`approveDesignVersion`, R07) — real now,
-  not hardcoded `false`.
-- **`development → launch`** gates on client build approval alone.
-  **`launch → handover`** gates on a separate 4-item `Project.launchChecklist`
-  (client approval, final payment, domain & hosting, QA) instead.
+- **`design → development`** requires the project's current *design-kind*
+  `DesignVersion` to have `status === "approved"` (`approveDesignVersion`,
+  R07).
+- **`development → launch`** requires the project's current
+  *development-kind* `DesignVersion` to be approved (`approveDesignVersion`,
+  R08/R19) — real now, not hardcoded `false`. That same approval ticks
+  `launchChecklist.clientApproval`.
+- **`launch → handover`** gates on all 4 of `Project.launchChecklist`
+  (client approval, final payment, domain & hosting, quality checks).
+  Client approval and final payment tick themselves (see above, and
+  `tickFinalPaymentIfApplicable` in `invoice-service.ts`); domain & hosting
+  and quality checks are manual agency toggles (A13,
+  `updateLaunchChecklistItem`). The actual stage move only happens via
+  `goLive` (A13's "Launch website"), not automatically the moment the 4th
+  check ticks — it additionally requires `Project.launchDate`/`liveUrl` to
+  be set (`setLaunchDetails`, editable independent of checklist progress).
 - Accepting a proposal (`acceptProposal`) turns its payment schedule into
   real invoices: the deposit row is `unpaid` immediately, the final row is
   created `scheduled` (exists, not due yet) and only flips to `unpaid` when
   the project reaches `launch` (`activateScheduledInvoices` in
-  `stage-service.ts`). Idempotent — accepting twice never duplicates.
+  `stage-service.ts`, which also sends a `final_invoice_due` notification).
+  Idempotent — accepting twice never duplicates.
+- Development revision rounds (R18) have no revision-allowance concept —
+  `RevisionRound.overAllowance` is always `false` for `kind: "development"`;
+  only design rounds are checked against the proposal's included rounds.
+- A **scope change** (R09 client review; created from R04/R18's "Flag for
+  scope decision" or from A16) never blocks the current stage either way.
+  Accepting records the acceptance and creates a separate `"additional"`
+  invoice type (guarded against double-processing — see DESIGN_NOTES);
+  declining just records the decision.
 
 ## Permissions
 
@@ -128,21 +156,24 @@ Password `password123` for everyone.
 Royal Trendsy (`proj-royal-trendsy`) is the fully-seeded demo project: brief
 approved, proposal v2 accepted, deposit paid, 3/4 required content items
 accepted (force-advanced into Design by Jerry — see `forcedAdvances`). It
-has no design version seeded by default — use the demo switcher's design
-scenario dropdown to reach any point in the revision loop.
+has no design or development version seeded by default — use the demo
+switcher's scenario dropdowns to reach any point in either revision loop,
+launch, handover, or a scope change.
 
 ## Dev-only demo-state switcher
 
 Floating widget, bottom-right, visible only when `NODE_ENV === "development"`
 (`components/dev/DemoStateSwitcher.tsx` + `POST /api/dev/demo-state`, which
 404s outside dev regardless of auth). Lets you set Royal Trendsy's stage,
-brief status, proposal status, deposit invoice status, content scenario, or
-design scenario directly, to reach any screen without replaying the full
-flow. Content/design scenarios are coarse named presets (e.g.
-`designScenario=v2_ready`) that synthesize a whole consistent set of
-records in one call rather than exposing every field as its own control —
-see DESIGN_NOTES. Because it needs `next dev`, `playwright.config.ts`'s e2e
-suite also runs against `next dev`, not `start`.
+brief status, proposal status, deposit invoice status, content scenario,
+design scenario, development scenario, launch scenario, final invoice
+status, handover scenario, or scope change scenario directly, to reach any
+screen without replaying the full flow. All of these are coarse named
+presets (e.g. `developmentScenario=v2_ready`, `launchScenario=checklist_complete`)
+that synthesize a whole consistent set of records in one call rather than
+exposing every field as its own control — see DESIGN_NOTES. Because it
+needs `next dev`, `playwright.config.ts`'s e2e suite also runs against
+`next dev`, not `start`.
 
 ## Phases done
 
@@ -171,6 +202,15 @@ suite also runs against `next dev`, not `start`.
   the review page). Authorized file uploads/downloads
   (`StorageProvider`, local disk). R15/R16/R17/R20 empty/error/viewer/
   loading states applied to the review pages.
+- **Phase 2c** — Development (A11 submit, C13/R08 client review, R18 agency
+  per-item tracking, R19 revised review → approval → Launch), reusing the
+  design review machinery via a new `ReviewKind` discriminator rather than
+  duplicating it. Launch (A13 checklist + handover resources, C14 readiness,
+  final balance checkout — no Figma screen, reuses the deposit checkout
+  pattern). Handover (C15; A13's resources section covers the agency side,
+  no separate agency screen). Scope change (R09 client accept/decline;
+  creation has no Figma screen on either side). New `NotificationType`s for
+  all of the above; demo switcher extended with 5 new scenario groups.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 

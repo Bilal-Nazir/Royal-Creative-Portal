@@ -6,15 +6,25 @@
  */
 export type DesignVersionStatus = "shared" | "superseded" | "approved";
 
-/** A10/R05 — a Figma link + required review screenshots the agency shares for client review. */
+/**
+ * Phase 2c — distinguishes the Design review loop (A10/R05/C12/R01) from the
+ * Development review loop (A11/C13/R08/R18/R19), which reuses the same
+ * version/pin/revision-round machinery under a separate track so a
+ * development round never counts against the proposal's design revision
+ * allowance and development approval drives Launch instead of Development.
+ */
+export type ReviewKind = "design" | "development";
+
+/** A10/R05 (design) and A11/C13 (development) — a link + required review screenshots the agency shares for client review. */
 export interface DesignVersion {
   id: string;
   projectId: string;
+  kind: ReviewKind;
   versionNumber: number;
   figmaLink: string;
   screenshotFileIds: string[];
   message?: string;
-  /** R05 — "what changed" note, set on version 2+ when responding to a revision round. */
+  /** R05/R19 — "what changed" / "changes completed" note, set on version 2+ when responding to a revision round. */
   whatChanged?: string;
   /** The round this version was submitted in response to, if any (version 1 has none). */
   respondsToRoundId?: string;
@@ -62,10 +72,11 @@ export function pinLabel(pin: { number: number; title?: string }): string {
 
 export type RevisionRoundWorkflowStatus = "submitted" | "in_progress" | "completed";
 
-/** R02/R13/R04 — every draft pin comment on a version, submitted together as one round. */
+/** R02/R13/R04 (design) and R08/R18/R19 (development) — every draft pin comment on a version, submitted together as one round. */
 export interface RevisionRound {
   id: string;
   projectId: string;
+  kind: ReviewKind;
   designVersionId: string;
   roundNumber: number;
   commentIds: string[];

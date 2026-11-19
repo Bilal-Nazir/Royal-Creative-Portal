@@ -47,6 +47,9 @@ export interface Project {
   openRevisions: number;
   nextMilestone: NextMilestone;
   launchChecklist: LaunchChecklistState;
+  /** A13 — agreed launch date and live URL, set by the agency when scheduling launch. */
+  launchDate?: string;
+  liveUrl?: string;
   forcedAdvances: ForcedAdvance[];
 }
 

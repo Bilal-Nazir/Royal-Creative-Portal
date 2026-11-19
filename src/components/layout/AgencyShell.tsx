@@ -14,8 +14,12 @@ const AGENCY_NAV_ITEMS = [
   { href: "/agency/settings", label: "Settings" },
 ];
 
-/** Brief/proposal/deposit/content/design are the stage pages built on the agency side so far — see A16's deviation in DESIGN_NOTES. */
-const AGENCY_LINKABLE_STAGES: Stage[] = ["brief", "proposal", "deposit", "content", "design"];
+/**
+ * Every stage page built on the agency side — see A16's deviation in
+ * DESIGN_NOTES. "handover" is deliberately excluded: Figma has no agency
+ * handover screen, so handover resources live on A13 (/launch) instead.
+ */
+const AGENCY_LINKABLE_STAGES: Stage[] = ["brief", "proposal", "deposit", "content", "design", "development", "launch"];
 
 export interface AgencyShellProps {
   children: ReactNode;

@@ -18,6 +18,8 @@ import {
   FileStoreProjectMessageRepository,
   FileStoreNotificationRepository,
   FileStoreUploadedFileRepository,
+  FileStoreScopeChangeRepository,
+  FileStoreHandoverResourceRepository,
 } from "./in-memory/in-memory-repositories";
 
 /**
@@ -50,3 +52,5 @@ export const revisionRoundRepository = new FileStoreRevisionRoundRepository();
 export const projectMessageRepository = new FileStoreProjectMessageRepository();
 export const notificationRepository = new FileStoreNotificationRepository();
 export const uploadedFileRepository = new FileStoreUploadedFileRepository();
+export const scopeChangeRepository = new FileStoreScopeChangeRepository();
+export const handoverResourceRepository = new FileStoreHandoverResourceRepository();
