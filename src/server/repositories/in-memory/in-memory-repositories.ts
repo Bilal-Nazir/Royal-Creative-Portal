@@ -10,7 +10,14 @@ import type {
   InvoiceRepository,
   CommentRepository,
   ContentChecklistRepository,
+  ContentSubmissionRepository,
   ShareLinkRepository,
+  DesignVersionRepository,
+  DesignPinCommentRepository,
+  RevisionRoundRepository,
+  ProjectMessageRepository,
+  NotificationRepository,
+  UploadedFileRepository,
 } from "../interfaces";
 import type { User } from "../../domain/user";
 import type { Project, ActivityItem, AttentionTask } from "../../domain/project";
@@ -19,10 +26,13 @@ import type { BriefVersion } from "../../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../../domain/proposal";
 import type { Invoice } from "../../domain/invoice";
 import type { Comment, CommentTargetType } from "../../domain/comment";
-import type { ContentChecklistItem } from "../../domain/content";
+import type { ContentChecklistItem, ContentSubmission } from "../../domain/content";
 import type { ShareLink } from "../../domain/share-link";
+import type { DesignVersion, DesignPinComment, RevisionRound } from "../../domain/design";
+import type { ProjectMessage } from "../../domain/message";
+import type { Notification } from "../../domain/notification";
+import type { UploadedFile } from "../../domain/upload";
 import { SEED_USERS, SEED_PROJECTS, SEED_ACTIVITIES, SEED_ATTENTION_TASKS, SEED_AGENCY_OVERVIEW } from "./seed-data";
-import { SEED_CONTENT_CHECKLIST_ITEMS } from "./seed-data-phase2a";
 import { readStore, writeStore } from "../../storage/file-store";
 
 export class InMemoryUserRepository implements UserRepository {
@@ -220,11 +230,174 @@ export class FileStoreCommentRepository implements CommentRepository {
   }
 }
 
-export class InMemoryContentChecklistRepository implements ContentChecklistRepository {
-  constructor(private readonly items: ContentChecklistItem[] = SEED_CONTENT_CHECKLIST_ITEMS) {}
-
+/**
+ * File-backed because A09/A08-style review actions (accept/request changes,
+ * and the client's own submissions) flip an item's status via a route
+ * handler, and the client-side checklist page reads it back via a page
+ * Server Component — the same cross-layer boundary as everywhere else in
+ * this store.
+ */
+export class FileStoreContentChecklistRepository implements ContentChecklistRepository {
   async listByProjectId(projectId: string): Promise<ContentChecklistItem[]> {
-    return this.items.filter((i) => i.projectId === projectId);
+    return readStore().contentChecklistItems.filter((i) => i.projectId === projectId);
+  }
+
+  async findById(id: string): Promise<ContentChecklistItem | null> {
+    return readStore().contentChecklistItems.find((i) => i.id === id) ?? null;
+  }
+
+  async update(item: ContentChecklistItem): Promise<void> {
+    const store = readStore();
+    const index = store.contentChecklistItems.findIndex((i) => i.id === item.id);
+    if (index === -1) return;
+    store.contentChecklistItems[index] = item;
+    writeStore(store);
+  }
+}
+
+export class FileStoreContentSubmissionRepository implements ContentSubmissionRepository {
+  async listByProjectId(projectId: string): Promise<ContentSubmission[]> {
+    return readStore().contentSubmissions.filter((s) => s.projectId === projectId);
+  }
+
+  async findById(id: string): Promise<ContentSubmission | null> {
+    return readStore().contentSubmissions.find((s) => s.id === id) ?? null;
+  }
+
+  async create(submission: ContentSubmission): Promise<void> {
+    const store = readStore();
+    store.contentSubmissions.push(submission);
+    writeStore(store);
+  }
+
+  async update(submission: ContentSubmission): Promise<void> {
+    const store = readStore();
+    const index = store.contentSubmissions.findIndex((s) => s.id === submission.id);
+    if (index === -1) return;
+    store.contentSubmissions[index] = submission;
+    writeStore(store);
+  }
+}
+
+export class FileStoreDesignVersionRepository implements DesignVersionRepository {
+  async listByProjectId(projectId: string): Promise<DesignVersion[]> {
+    return readStore()
+      .designVersions.filter((v) => v.projectId === projectId)
+      .sort((a, b) => a.versionNumber - b.versionNumber);
+  }
+
+  async getCurrentVersion(projectId: string): Promise<DesignVersion | null> {
+    const versions = readStore().designVersions.filter((v) => v.projectId === projectId);
+    if (versions.length === 0) return null;
+    return versions.reduce((latest, v) => (v.versionNumber > latest.versionNumber ? v : latest));
+  }
+
+  async findById(id: string): Promise<DesignVersion | null> {
+    return readStore().designVersions.find((v) => v.id === id) ?? null;
+  }
+
+  async create(version: DesignVersion): Promise<void> {
+    const store = readStore();
+    store.designVersions.push(version);
+    writeStore(store);
+  }
+
+  async update(version: DesignVersion): Promise<void> {
+    const store = readStore();
+    const index = store.designVersions.findIndex((v) => v.id === version.id);
+    if (index === -1) return;
+    store.designVersions[index] = version;
+    writeStore(store);
+  }
+}
+
+export class FileStoreDesignPinCommentRepository implements DesignPinCommentRepository {
+  async listByVersionId(versionId: string): Promise<DesignPinComment[]> {
+    return readStore()
+      .designPinComments.filter((c) => c.designVersionId === versionId)
+      .sort((a, b) => a.number - b.number);
+  }
+
+  async findById(id: string): Promise<DesignPinComment | null> {
+    return readStore().designPinComments.find((c) => c.id === id) ?? null;
+  }
+
+  async create(comment: DesignPinComment): Promise<void> {
+    const store = readStore();
+    store.designPinComments.push(comment);
+    writeStore(store);
+  }
+
+  async update(comment: DesignPinComment): Promise<void> {
+    const store = readStore();
+    const index = store.designPinComments.findIndex((c) => c.id === comment.id);
+    if (index === -1) return;
+    store.designPinComments[index] = comment;
+    writeStore(store);
+  }
+}
+
+export class FileStoreRevisionRoundRepository implements RevisionRoundRepository {
+  async listByProjectId(projectId: string): Promise<RevisionRound[]> {
+    return readStore()
+      .revisionRounds.filter((r) => r.projectId === projectId)
+      .sort((a, b) => a.roundNumber - b.roundNumber);
+  }
+
+  async findById(id: string): Promise<RevisionRound | null> {
+    return readStore().revisionRounds.find((r) => r.id === id) ?? null;
+  }
+
+  async create(round: RevisionRound): Promise<void> {
+    const store = readStore();
+    store.revisionRounds.push(round);
+    writeStore(store);
+  }
+
+  async update(round: RevisionRound): Promise<void> {
+    const store = readStore();
+    const index = store.revisionRounds.findIndex((r) => r.id === round.id);
+    if (index === -1) return;
+    store.revisionRounds[index] = round;
+    writeStore(store);
+  }
+}
+
+export class FileStoreProjectMessageRepository implements ProjectMessageRepository {
+  async listByProjectId(projectId: string): Promise<ProjectMessage[]> {
+    return readStore()
+      .projectMessages.filter((m) => m.projectId === projectId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
+  async create(message: ProjectMessage): Promise<void> {
+    const store = readStore();
+    store.projectMessages.push(message);
+    writeStore(store);
+  }
+}
+
+export class FileStoreNotificationRepository implements NotificationRepository {
+  async create(notification: Notification): Promise<void> {
+    const store = readStore();
+    store.notifications.push(notification);
+    writeStore(store);
+  }
+
+  async listByProjectId(projectId: string): Promise<Notification[]> {
+    return readStore().notifications.filter((n) => n.projectId === projectId);
+  }
+}
+
+export class FileStoreUploadedFileRepository implements UploadedFileRepository {
+  async findById(id: string): Promise<UploadedFile | null> {
+    return readStore().uploadedFiles.find((f) => f.id === id) ?? null;
+  }
+
+  async create(file: UploadedFile): Promise<void> {
+    const store = readStore();
+    store.uploadedFiles.push(file);
+    writeStore(store);
   }
 }
 

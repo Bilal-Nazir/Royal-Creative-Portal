@@ -5,8 +5,12 @@ import type { BriefVersion } from "../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../domain/proposal";
 import type { Invoice } from "../domain/invoice";
 import type { Comment, CommentTargetType } from "../domain/comment";
-import type { ContentChecklistItem } from "../domain/content";
+import type { ContentChecklistItem, ContentSubmission } from "../domain/content";
 import type { ShareLink } from "../domain/share-link";
+import type { DesignVersion, DesignPinComment, RevisionRound } from "../domain/design";
+import type { ProjectMessage } from "../domain/message";
+import type { Notification } from "../domain/notification";
+import type { UploadedFile } from "../domain/upload";
 
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
@@ -68,10 +72,56 @@ export interface CommentRepository {
 
 export interface ContentChecklistRepository {
   listByProjectId(projectId: string): Promise<ContentChecklistItem[]>;
+  findById(id: string): Promise<ContentChecklistItem | null>;
+  update(item: ContentChecklistItem): Promise<void>;
+}
+
+export interface ContentSubmissionRepository {
+  listByProjectId(projectId: string): Promise<ContentSubmission[]>;
+  findById(id: string): Promise<ContentSubmission | null>;
+  create(submission: ContentSubmission): Promise<void>;
+  update(submission: ContentSubmission): Promise<void>;
 }
 
 export interface ShareLinkRepository {
   findByToken(token: string): Promise<ShareLink | null>;
   findByProjectId(projectId: string): Promise<ShareLink | null>;
   create(link: ShareLink): Promise<void>;
+}
+
+export interface DesignVersionRepository {
+  listByProjectId(projectId: string): Promise<DesignVersion[]>;
+  getCurrentVersion(projectId: string): Promise<DesignVersion | null>;
+  findById(id: string): Promise<DesignVersion | null>;
+  create(version: DesignVersion): Promise<void>;
+  update(version: DesignVersion): Promise<void>;
+}
+
+export interface DesignPinCommentRepository {
+  listByVersionId(versionId: string): Promise<DesignPinComment[]>;
+  findById(id: string): Promise<DesignPinComment | null>;
+  create(comment: DesignPinComment): Promise<void>;
+  update(comment: DesignPinComment): Promise<void>;
+}
+
+export interface RevisionRoundRepository {
+  listByProjectId(projectId: string): Promise<RevisionRound[]>;
+  findById(id: string): Promise<RevisionRound | null>;
+  create(round: RevisionRound): Promise<void>;
+  update(round: RevisionRound): Promise<void>;
+}
+
+export interface ProjectMessageRepository {
+  listByProjectId(projectId: string): Promise<ProjectMessage[]>;
+  create(message: ProjectMessage): Promise<void>;
+}
+
+export interface NotificationRepository {
+  create(notification: Notification): Promise<void>;
+  listByProjectId(projectId: string): Promise<Notification[]>;
+}
+
+export interface UploadedFileRepository {
+  findById(id: string): Promise<UploadedFile | null>;
+  create(file: UploadedFile): Promise<void>;
 }

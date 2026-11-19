@@ -1,24 +1,32 @@
-import { briefRepository, proposalRepository, invoiceRepository, contentChecklistRepository, projectRepository } from "../repositories/container";
+import {
+  briefRepository,
+  proposalRepository,
+  invoiceRepository,
+  contentChecklistRepository,
+  designVersionRepository,
+  projectRepository,
+} from "../repositories/container";
 import { requiredItemsAllAccepted } from "../domain/content";
 import { isInvoiceConfirmed, type Invoice } from "../domain/invoice";
 import { isLaunchChecklistComplete, type Project } from "../domain/project";
 import { canAdvance, type ProjectGateState } from "../domain/stage";
 
 /**
- * Computes the live gate state for a project from its brief/proposal/invoice/
- * content records. designApproved and developmentApproved are always false —
- * Phase 2a doesn't build the design/development approval screens (R06/R07/R19
- * etc.) or their underlying records yet, so those two gates have nothing real
- * to read from. launchChecklistComplete is real (Project.launchChecklist
- * exists) even though no Phase 2a screen sets it, so the demo switcher and
- * tests can exercise it.
+ * Computes the live gate state for a project from its brief/proposal/
+ * invoice/content/design records. developmentApproved is always false —
+ * this phase doesn't build the development approval screen (R19 etc.) or
+ * its underlying record yet, so that one gate has nothing real to read
+ * from. launchChecklistComplete is real (Project.launchChecklist exists)
+ * even though no screen sets it yet, so the demo switcher and tests can
+ * exercise it.
  */
 export async function computeGateState(project: Project): Promise<ProjectGateState> {
-  const [brief, proposal, invoice, contentItems] = await Promise.all([
+  const [brief, proposal, invoice, contentItems, designVersion] = await Promise.all([
     briefRepository.getCurrentVersion(project.id),
     proposalRepository.getCurrentVersion(project.id),
     invoiceRepository.getDepositInvoice(project.id),
     contentChecklistRepository.listByProjectId(project.id),
+    designVersionRepository.getCurrentVersion(project.id),
   ]);
 
   return {
@@ -26,7 +34,7 @@ export async function computeGateState(project: Project): Promise<ProjectGateSta
     proposalAccepted: proposal?.status === "accepted",
     depositConfirmed: invoice ? isInvoiceConfirmed(invoice) : false,
     requiredContentAccepted: requiredItemsAllAccepted(contentItems),
-    designApproved: false,
+    designApproved: designVersion?.status === "approved",
     developmentApproved: false,
     launchChecklistComplete: isLaunchChecklistComplete(project.launchChecklist),
   };

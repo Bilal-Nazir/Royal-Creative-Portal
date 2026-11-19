@@ -10,6 +10,7 @@ const bodySchema = z.object({
   exclusions: z.string(),
   fee: z.number().min(0),
   paymentSchedule: z.array(z.object({ label: z.string(), amount: z.number().min(0) })),
+  includedRevisionRounds: z.number().min(0),
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ projectId: string }> }) {
@@ -21,8 +22,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) return NextResponse.json({ ok: false, error: "Couldn't save the draft." }, { status: 400 });
 
-  const { fee, paymentSchedule, ...fields } = parsed.data;
-  const result = await saveProposalDraft(session, projectId, fields, fee, paymentSchedule);
+  const { fee, paymentSchedule, includedRevisionRounds, ...fields } = parsed.data;
+  const result = await saveProposalDraft(session, projectId, fields, fee, paymentSchedule, includedRevisionRounds);
   if (!result.ok) return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true, proposal: result.data });
 }

@@ -7,6 +7,11 @@ import type { ProposalVersion, AcceptanceRecord } from "../domain/proposal";
 import type { Invoice } from "../domain/invoice";
 import type { Comment } from "../domain/comment";
 import type { ShareLink } from "../domain/share-link";
+import type { ContentChecklistItem, ContentSubmission } from "../domain/content";
+import type { DesignVersion, DesignPinComment, RevisionRound } from "../domain/design";
+import type { ProjectMessage } from "../domain/message";
+import type { Notification } from "../domain/notification";
+import type { UploadedFile } from "../domain/upload";
 import { SEED_PROJECTS } from "../repositories/in-memory/seed-data";
 import {
   SEED_BRIEF_VERSIONS,
@@ -15,6 +20,14 @@ import {
   SEED_INVOICES,
   SEED_COMMENTS,
   SEED_SHARE_LINKS,
+  SEED_CONTENT_CHECKLIST_ITEMS,
+  SEED_CONTENT_SUBMISSIONS,
+  SEED_DESIGN_VERSIONS,
+  SEED_DESIGN_PIN_COMMENTS,
+  SEED_REVISION_ROUNDS,
+  SEED_PROJECT_MESSAGES,
+  SEED_NOTIFICATIONS,
+  SEED_UPLOADED_FILES,
 } from "../repositories/in-memory/seed-data-phase2a";
 
 export interface StoreShape {
@@ -25,6 +38,14 @@ export interface StoreShape {
   invoices: Invoice[];
   comments: Comment[];
   shareLinks: ShareLink[];
+  contentChecklistItems: ContentChecklistItem[];
+  contentSubmissions: ContentSubmission[];
+  designVersions: DesignVersion[];
+  designPinComments: DesignPinComment[];
+  revisionRounds: RevisionRound[];
+  projectMessages: ProjectMessage[];
+  notifications: Notification[];
+  uploadedFiles: UploadedFile[];
 }
 
 const STORE_PATH = join(process.cwd(), ".data", "phase2a-store.json");
@@ -41,8 +62,21 @@ function seedStore(): StoreShape {
       invoices: SEED_INVOICES,
       comments: SEED_COMMENTS,
       shareLinks: SEED_SHARE_LINKS,
+      contentChecklistItems: SEED_CONTENT_CHECKLIST_ITEMS,
+      contentSubmissions: SEED_CONTENT_SUBMISSIONS,
+      designVersions: SEED_DESIGN_VERSIONS,
+      designPinComments: SEED_DESIGN_PIN_COMMENTS,
+      revisionRounds: SEED_REVISION_ROUNDS,
+      projectMessages: SEED_PROJECT_MESSAGES,
+      notifications: SEED_NOTIFICATIONS,
+      uploadedFiles: SEED_UPLOADED_FILES,
     }),
   );
+}
+
+/** Fills in any collection missing from a store file written before this phase, so a stale on-disk store doesn't crash. */
+function withMissingCollectionsFilled(store: StoreShape): StoreShape {
+  return { ...seedStore(), ...store };
 }
 
 /**
@@ -61,7 +95,7 @@ export function readStore(): StoreShape {
     return seeded;
   }
   const raw = readFileSync(STORE_PATH, "utf-8");
-  return JSON.parse(raw) as StoreShape;
+  return withMissingCollectionsFilled(JSON.parse(raw) as StoreShape);
 }
 
 /**

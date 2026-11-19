@@ -22,10 +22,17 @@ export interface ProposalEditorFormProps {
   initial: ProposalFields;
   initialFee: number;
   initialSchedule: PaymentScheduleItem[];
+  initialIncludedRevisionRounds: number;
 }
 
 /** Replaces Figma's single free-text proposal textarea (5:445) with the structured ProposalFields the services already store. See DESIGN_NOTES. */
-export function ProposalEditorForm({ projectId, initial, initialFee, initialSchedule }: ProposalEditorFormProps) {
+export function ProposalEditorForm({
+  projectId,
+  initial,
+  initialFee,
+  initialSchedule,
+  initialIncludedRevisionRounds,
+}: ProposalEditorFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [submitting, setSubmitting] = useState<"draft" | "send" | null>(null);
@@ -46,18 +53,19 @@ export function ProposalEditorForm({ projectId, initial, initialFee, initialSche
       FIELD_ORDER.map(({ key }) => [key, String(data.get(key) ?? "").trim()]),
     ) as unknown as ProposalFields;
     const fee = Number(data.get("fee") ?? 0);
-    return { fields, fee, paymentSchedule: schedule };
+    const includedRevisionRounds = Number(data.get("includedRevisionRounds") ?? 0);
+    return { fields, fee, paymentSchedule: schedule, includedRevisionRounds };
   }
 
   async function handleSaveDraft() {
     setSubmitting("draft");
     setError(null);
     try {
-      const { fields, fee, paymentSchedule } = readPayload();
+      const { fields, fee, paymentSchedule, includedRevisionRounds } = readPayload();
       const response = await fetch(`/api/projects/${projectId}/proposal/save-draft`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...fields, fee, paymentSchedule }),
+        body: JSON.stringify({ ...fields, fee, paymentSchedule, includedRevisionRounds }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) {
@@ -73,7 +81,7 @@ export function ProposalEditorForm({ projectId, initial, initialFee, initialSche
   }
 
   async function handleSend() {
-    const { fields, fee, paymentSchedule } = readPayload();
+    const { fields, fee, paymentSchedule, includedRevisionRounds } = readPayload();
     if (FIELD_ORDER.some(({ key }) => !fields[key])) {
       setError("Fill in every field before sending.");
       return;
@@ -89,7 +97,7 @@ export function ProposalEditorForm({ projectId, initial, initialFee, initialSche
       const response = await fetch(`/api/projects/${projectId}/proposal/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...fields, fee, paymentSchedule }),
+        body: JSON.stringify({ ...fields, fee, paymentSchedule, includedRevisionRounds }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) {
@@ -113,6 +121,15 @@ export function ProposalEditorForm({ projectId, initial, initialFee, initialSche
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Project fee" id="fee" name="fee" type="number" min={0} defaultValue={initialFee} inputClassName="w-[150px]" />
+          <Field
+            label="Included revision rounds"
+            id="includedRevisionRounds"
+            name="includedRevisionRounds"
+            type="number"
+            min={0}
+            defaultValue={initialIncludedRevisionRounds}
+            inputClassName="w-[150px]"
+          />
         </div>
 
         <div className="flex flex-col gap-2">

@@ -18,10 +18,12 @@ src/
                                the "PROJECT JOURNEY" sidebar via ClientShell(journeyStage)
     (agency)/agency/           dashboard, projects (board), projects/new, payments, contacts, etc.
     (agency-project)/agency/projects/[projectId]/
-                               project detail, brief, proposal, deposit — own layout injects
-                               the "PROJECT JOURNEY" sidebar via AgencyShell(journeyStage)
+                               project detail, brief, proposal, deposit, content, design
+                               (hub/submit/rounds/[roundId]), conversation — own layout
+                               injects the "PROJECT JOURNEY" sidebar via AgencyShell(journeyStage)
     api/                       thin route handlers — parse input, call a service, map
                                ServiceResult to an HTTP status. No business logic here.
+    api/files/                 upload (multipart) + [fileId] (authorized download, never public)
     b/[token]                  public guest brief preview, no auth
   components/
     ui/                        Button, Field, Select, Badge, Card, ListRow, ProgressBar,
@@ -31,15 +33,20 @@ src/
                                shells can reuse it with different link rules)
     project/                   BriefDocument, ProposalDocument, CommentThread, ProjectsBoard
                                (kanban), InvoiceList, PaymentStatusMenu, CopyClientLinkButton,
-                               PreviewClientViewButton
+                               PreviewClientViewButton, FileDropField, PinOverlay,
+                               DesignReviewWorkspace/Tabs, ChatPanel, ReadOnlyNotice,
+                               EmptyReviewCard
     dev/DemoStateSwitcher.tsx  dev-only, see below
   server/
-    domain/                    plain types + pure functions (stage.ts, brief.ts, invoice.ts...)
+    domain/                    plain types + pure functions (stage.ts, brief.ts, invoice.ts,
+                               content.ts, design.ts, message.ts, notification.ts, upload.ts...)
     repositories/               interfaces.ts + in-memory/ impls + container.ts (DI point)
     services/                  business rules + permission checks; return ServiceResult<T>
     auth/                       session (jose), password hashing, cookies, share tokens
     payments/                   PaymentProvider interface + MockPaymentProvider
     storage/file-store.ts       see "Data store" below
+    storage/storage-provider.ts StorageProvider interface + local-disk impl (.data/uploads/)
+    storage/upload-validation.ts per-scope MIME/size validation + filename sanitization
 ```
 
 Routes are split into `(client)` vs `(client-project)` route groups because the
@@ -53,10 +60,13 @@ Two tiers:
   data nothing ever mutates: users, activity feed, attention tasks, agency
   overview stats, content checklist, share links.
 - **File-backed JSON** (`.data/phase2a-store.json`, gitignored, auto-seeded on
-  first read, written atomically via a temp-file-then-rename) for the seven
-  entities that get mutated by one Next.js "layer" (a route handler) and read
+  first read, written atomically via a temp-file-then-rename) for every
+  entity that gets mutated by one Next.js "layer" (a route handler) and read
   by another (a page Server Component): Project, BriefVersion,
-  ProposalVersion, Invoice, Comment, AcceptanceRecord, ShareLink.
+  ProposalVersion, Invoice, Comment, AcceptanceRecord, ShareLink,
+  ContentChecklistItem, ContentSubmission, DesignVersion, DesignPinComment,
+  RevisionRound, ProjectMessage, Notification, UploadedFile (metadata only —
+  bytes live in `.data/uploads/`, see `storage/storage-provider.ts`).
 
 **Why the file.** Next.js compiles Route Handlers and page Server Components
 into separate module/VM contexts that do not share state — not even via
@@ -80,9 +90,12 @@ the next read reseeds it).
   client-reported ("unverified") bank transfer does not satisfy it until an
   admin calls `verifyInvoicePayment`.
 - **`content → design`** requires every *required* content-checklist item
-  accepted. The one `forceable` transition — an agency owner/admin/assigned
-  member can force it (`forceAdvanceContentToDesign`), recorded on
-  `Project.forcedAdvances`.
+  `status === "accepted"`. The one `forceable` transition — an agency
+  owner/admin/assigned member can force it (`forceAdvanceContentToDesign`,
+  wired to the UI on A09), recorded on `Project.forcedAdvances`.
+- **`design → development`** requires the project's current `DesignVersion`
+  to have `status === "approved"` (`approveDesignVersion`, R07) — real now,
+  not hardcoded `false`.
 - **`development → launch`** gates on client build approval alone.
   **`launch → handover`** gates on a separate 4-item `Project.launchChecklist`
   (client approval, final payment, domain & hosting, QA) instead.
@@ -114,16 +127,22 @@ Password `password123` for everyone.
 
 Royal Trendsy (`proj-royal-trendsy`) is the fully-seeded demo project: brief
 approved, proposal v2 accepted, deposit paid, 3/4 required content items
-accepted (force-advanced into Design by Jerry — see `forcedAdvances`).
+accepted (force-advanced into Design by Jerry — see `forcedAdvances`). It
+has no design version seeded by default — use the demo switcher's design
+scenario dropdown to reach any point in the revision loop.
 
 ## Dev-only demo-state switcher
 
 Floating widget, bottom-right, visible only when `NODE_ENV === "development"`
 (`components/dev/DemoStateSwitcher.tsx` + `POST /api/dev/demo-state`, which
 404s outside dev regardless of auth). Lets you set Royal Trendsy's stage,
-brief status, proposal status, or deposit invoice status directly, to reach
-any screen without replaying the full flow. Because it needs `next dev`,
-`playwright.config.ts`'s e2e suite also runs against `next dev`, not `start`.
+brief status, proposal status, deposit invoice status, content scenario, or
+design scenario directly, to reach any screen without replaying the full
+flow. Content/design scenarios are coarse named presets (e.g.
+`designScenario=v2_ready`) that synthesize a whole consistent set of
+records in one call rather than exposing every field as its own control —
+see DESIGN_NOTES. Because it needs `next dev`, `playwright.config.ts`'s e2e
+suite also runs against `next dev`, not `start`.
 
 ## Phases done
 
@@ -144,6 +163,14 @@ any screen without replaying the full flow. Because it needs `next dev`,
   (real metrics, invoice list, quick status menu), A08 update payment status
   (mark paid manually / verify). New `(agency-project)` route group mirrors
   `(client-project)`.
+- **Phase 2b** — Content stage (C11 client submission, A09 agency review,
+  force-advance wired to UI) and the Design revision loop (A10 first
+  submission, C12/R01 pin-comment review, R02/R13 submit a revision round,
+  R04 agency tracking + scope review, R05 resubmission, R06 re-review, R07
+  approval → Development). Project chat (R10 standalone, R12 as a tab on
+  the review page). Authorized file uploads/downloads
+  (`StorageProvider`, local disk). R15/R16/R17/R20 empty/error/viewer/
+  loading states applied to the review pages.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 
@@ -152,7 +179,7 @@ See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and wh
 ```
 npm run lint        # eslint, 0 errors expected (a few next/image warnings on SVGs are fine)
 npm run typecheck   # tsc --noEmit
-npm run test        # vitest — unit tests for stage/content/invoice rules + permissions
+npm run test        # vitest — unit tests for stage/content/design/invoice rules + permissions
 npm run build        # next build — must succeed clean
 npx playwright test  # visual check at 1440px + 390px for every screen; starts its own `next dev`
 ```

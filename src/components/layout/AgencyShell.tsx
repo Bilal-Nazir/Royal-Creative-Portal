@@ -14,8 +14,8 @@ const AGENCY_NAV_ITEMS = [
   { href: "/agency/settings", label: "Settings" },
 ];
 
-/** Brief/proposal/deposit are the only stage pages built on the agency side — see A16's deviation in DESIGN_NOTES. */
-const AGENCY_LINKABLE_STAGES: Stage[] = ["brief", "proposal", "deposit"];
+/** Brief/proposal/deposit/content/design are the stage pages built on the agency side so far — see A16's deviation in DESIGN_NOTES. */
+const AGENCY_LINKABLE_STAGES: Stage[] = ["brief", "proposal", "deposit", "content", "design"];
 
 export interface AgencyShellProps {
   children: ReactNode;

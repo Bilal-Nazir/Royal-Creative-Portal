@@ -2,8 +2,12 @@ import type { BriefVersion } from "../../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../../domain/proposal";
 import type { Invoice } from "../../domain/invoice";
 import type { Comment } from "../../domain/comment";
-import type { ContentChecklistItem } from "../../domain/content";
+import type { ContentChecklistItem, ContentSubmission } from "../../domain/content";
 import type { ShareLink } from "../../domain/share-link";
+import type { DesignVersion, DesignPinComment, RevisionRound } from "../../domain/design";
+import type { ProjectMessage } from "../../domain/message";
+import type { Notification } from "../../domain/notification";
+import type { UploadedFile } from "../../domain/upload";
 
 const ROYAL_TRENDSY_BRIEF_FIELDS = {
   objective: "launch a polished ecommerce website for Royal Trendsy.",
@@ -80,6 +84,7 @@ export const SEED_PROPOSAL_VERSIONS: ProposalVersion[] = [
       { label: "Before design", amount: 1000 },
       { label: "Before launch", amount: 1000 },
     ],
+    includedRevisionRounds: 1,
     status: "changes_requested",
     createdByName: "Jerry Royal",
     createdAt: "2026-10-31T16:00:00.000Z",
@@ -101,6 +106,7 @@ export const SEED_PROPOSAL_VERSIONS: ProposalVersion[] = [
       { label: "Before design", amount: 1200 },
       { label: "Before launch", amount: 1200 },
     ],
+    includedRevisionRounds: 2,
     status: "accepted",
     createdByName: "Jerry Royal",
     createdAt: "2026-11-01T12:00:00.000Z",
@@ -120,6 +126,7 @@ export const SEED_PROPOSAL_VERSIONS: ProposalVersion[] = [
       { label: "Before design", amount: 1600 },
       { label: "Before launch", amount: 1600 },
     ],
+    includedRevisionRounds: 2,
     status: "sent",
     createdByName: "Jerry Royal",
     createdAt: "2026-10-28T09:00:00.000Z",
@@ -139,6 +146,7 @@ export const SEED_PROPOSAL_VERSIONS: ProposalVersion[] = [
       { label: "Before design", amount: 1400 },
       { label: "Before launch", amount: 1400 },
     ],
+    includedRevisionRounds: 2,
     status: "accepted",
     createdByName: "Jerry Royal",
     createdAt: "2026-10-12T09:00:00.000Z",
@@ -245,30 +253,38 @@ export const SEED_CONTENT_CHECKLIST_ITEMS: ContentChecklistItem[] = [
     projectId: "proj-royal-trendsy",
     label: "Logo and brand guidelines",
     required: true,
-    accepted: true,
+    status: "accepted",
   },
   {
     id: "content-royal-trendsy-company",
     projectId: "proj-royal-trendsy",
     label: "Company details",
     required: true,
-    accepted: true,
+    status: "accepted",
   },
   {
     id: "content-royal-trendsy-copy",
     projectId: "proj-royal-trendsy",
     label: "Services and website copy",
     required: true,
-    accepted: true,
+    status: "accepted",
   },
   {
     id: "content-royal-trendsy-images",
     projectId: "proj-royal-trendsy",
     label: "Images and videos",
     required: true,
-    accepted: false,
+    status: "not_started",
   },
 ];
+
+export const SEED_CONTENT_SUBMISSIONS: ContentSubmission[] = [];
+export const SEED_DESIGN_VERSIONS: DesignVersion[] = [];
+export const SEED_DESIGN_PIN_COMMENTS: DesignPinComment[] = [];
+export const SEED_REVISION_ROUNDS: RevisionRound[] = [];
+export const SEED_PROJECT_MESSAGES: ProjectMessage[] = [];
+export const SEED_NOTIFICATIONS: Notification[] = [];
+export const SEED_UPLOADED_FILES: UploadedFile[] = [];
 
 // Fixed, not randomly generated: seed data must be deterministic across
 // separate module realms (e.g. Next.js dev mode evaluates route handlers and

@@ -9,6 +9,8 @@ const ROYAL_TRENDSY_PROJECT_ID = "proj-royal-trendsy";
 const BRIEF_STATUSES = ["draft", "sent", "changes_requested", "approved"] as const;
 const PROPOSAL_STATUSES = ["draft", "sent", "changes_requested", "accepted"] as const;
 const INVOICE_STATUSES = ["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"] as const;
+const CONTENT_SCENARIOS = ["baseline", "images_submitted", "images_changes_requested"] as const;
+const DESIGN_SCENARIOS = ["none", "v1_shared", "v1_feedback_draft", "round1_submitted", "v2_ready", "approved"] as const;
 
 /** Dev-only — renders nothing outside development. Targets Royal Trendsy specifically, per spec. */
 export function DemoStateSwitcher() {
@@ -117,6 +119,44 @@ export function DemoStateSwitcher() {
               {INVOICE_STATUSES.map((status) => (
                 <option key={status} value={status}>
                   {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Content scenario (images item)
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ contentScenario: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set content scenario…
+              </option>
+              {CONTENT_SCENARIOS.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            Design scenario
+            <select
+              disabled={busy}
+              defaultValue=""
+              onChange={(e) => e.target.value && apply({ designScenario: e.target.value })}
+              className="rounded-rc-control bg-surface-2 p-2 text-ink"
+            >
+              <option value="" disabled>
+                Set design scenario…
+              </option>
+              {DESIGN_SCENARIOS.map((scenario) => (
+                <option key={scenario} value={scenario}>
+                  {scenario}
                 </option>
               ))}
             </select>

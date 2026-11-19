@@ -388,3 +388,192 @@ Columns are `w-[85vw]` on mobile (`sm:w-[260px]` unchanged on desktop), and
 the scroll container uses CSS scroll-snap (`snap-x snap-mandatory` on the
 row, `snap-start` on each column) so swiping settles on a column edge
 instead of stopping at an arbitrary scroll offset.
+
+# Design notes — Phase 2b (content + design revision loop)
+
+## Content checklist gets a real status enum, not just a boolean
+
+`ContentChecklistItem.accepted: boolean` became `status: ContentItemStatus`
+(`not_started | submitted | changes_requested | accepted`) — the brief asked
+for all four states and Figma's own C11 mock shows "Missing"/"Needs
+clarification"/"Accepted" badges that a boolean can't express. The
+checklist moved from a static in-memory array to the file store
+(`FileStoreContentChecklistRepository`) since statuses now mutate via A09's
+review actions.
+
+## C11 — per-item submissions, not Figma's one combined panel
+
+Figma's "Send content for review" (3:679) is a single Files/link/notes form
+with no indication of *which* checklist item it submits for. The brief
+explicitly asks for "files, a shared link and notes **per item**", so each
+checklist item gets its own submission card instead — closer to A04's
+precedent (added a missing selector where Figma's mock was generic). One
+consequence: there's no "Save draft" action, since a per-item submission has
+nothing resembling the brief/proposal draft lifecycle to save into — files
+stay as local state in the browser until "Submit for review".
+
+## A09 — accept/request-changes actions and the force-advance button are additions
+
+Figma's A09 capture (5:694) ends at the "Client submission" display card —
+no Accept/Request changes buttons are visible in the frame, and nothing in
+the file calls `forceAdvanceContentToDesign` (it's existed as a service
+since Phase 2a but had no UI). Both were added here: per-item Accept/Request
+changes actions (`ReviewActions`), and a "Force-advance to Design" button in
+a new "Stage control" card, since the brief explicitly requires both and
+this is the only screen where they fit.
+
+## A10 — review screenshots are required and added; Figma's mock omits them
+
+Figma's A10 (5:784) only has a Figma-link field and an optional message —
+no screenshot upload at all, despite C12/R01's review screens being built
+entirely around screenshot pins. Since the brief explicitly requires
+screenshots and the whole pin-comment feature depends on a real image,
+`FileDropField` (scope `design-screenshot`, png/jpg/webp, 10MB cap) was
+added as a required field. The same form (and the same
+`POST /design/versions` endpoint) handles R05's resubmission, switching
+copy and adding the "What changed" field when a current version already
+exists.
+
+## C12 / R01 — one page, not two; pins replace Figma's static numbered badges
+
+Figma's 3:773 ("C12 · Design submission") and 6:2 ("R01 · Design annotation
+review") are the same screen — same layout, same copy pattern, same
+Feedback/Approve/Ask-for-changes actions — just captured at slightly
+different states (3:773's badges are baked into the mock content; 6:2 adds
+the "Feedback draft" badge and the "Pins 1–2…" caption). Built as one page
+(`/projects/[id]/design`), branching on the current version's status rather
+than being two routes. R06 ("Revised design review") is the same page again
+for version 2+ — only the header copy and the presence of a "What changed"
+card differ, so there's no separate R06 route either.
+
+Figma's pin numbers are plain `Badge` components already positioned inside
+the mock's static content blocks — they're not interactive and carry no
+real coordinates. The actual requirement ("click a screenshot to drop a
+numbered pin... store pin position as a percentage") needed a real
+uploaded screenshot `<img>` with an absolutely-positioned overlay
+(`PinOverlay`) computing `xPercent`/`yPercent` from the click's offset
+against the image's bounding rect — this works identically for a mobile tap
+(same `onClick` handler fires for touch taps in every tested browser), which
+is why there's no separate touch-specific code path.
+
+**Update:** pins gained an optional `title` field (max 60 chars) so the
+sidebar can show Figma's "1 · Hero heading" instead of just "Pin 1". It's
+optional — a pin dropped without one shows as `"Pin {n}"` — formatted by
+one shared `pinLabel()` helper used by the workspace sidebar, R02's
+pre-submit list, and R04's requested-changes list, so the three never
+drift out of sync with each other.
+
+## R12 — a tab, not a separate screen
+
+Figma's R12 ("Review with chat drawer") is visually identical to C12/R01
+except the right-hand panel is the project conversation instead of
+feedback. Rather than a second route duplicating the screenshot/pins half,
+the review page has a "Feedback" / "Conversation" tab
+(`DesignReviewTabs`) that swaps only the sidebar — avoids re-fetching or
+re-rendering the screenshot and pins twice.
+
+## R10 — a new project-scoped chat route, separate from the existing "Messages" stub
+
+The existing top-level `/messages` nav item is (and remains) a placeholder
+— "the full agency Messages inbox is a later phase," per Phase 2a's own
+notes. R10's chat is explicitly project-scoped (breadcrumb, journey
+sidebar), so it lives at `/projects/[id]/conversation` instead, with an
+agency-side mirror at `/agency/projects/[id]/conversation` added so the
+agency has somewhere to actually reply from — nothing in Figma's 17 frames
+shows the agency side of this chat, but `postProjectMessage` accepts either
+role and a one-way inbox isn't functional.
+
+## R02/R13 — one route, not two
+
+R02 ("Submit revision round") and R13 ("Feedback submitted") are the same
+page (`/projects/[id]/design/revise`): the submit button's success handler
+swaps local state to show R13's content instead of redirecting, so the
+confirmation reads as the direct result of the action rather than a second
+navigation.
+
+## R04's "Send to internal review" becomes a conditional "Flag for scope decision"
+
+Figma's R04 shows a `ButtonPrimary` "Send to internal review" even in the
+example where both requested changes are within the agreed allowance — i.e.
+nothing to flag. Built so the button (relabelled "Flag for scope decision")
+only appears when `round.overAllowance` is true; within allowance, the card
+shows the informational text only. Flagging records `scopeFlaggedAt` and
+never blocks the round's progress either way, per the brief.
+
+## New `ProposalVersion.includedRevisionRounds` field
+
+R04's scope review needs a real number to compare rounds used against.
+`ProposalFields.revisions` is free text ("two design rounds included.") —
+parsing a number out of prose felt fragile, so a sibling numeric field was
+added to `ProposalVersion` (alongside `fee`/`paymentSchedule`, which already
+live outside `fields` for the same reason) and exposed as a new "Included
+revision rounds" input on A06's proposal editor — not in Figma, logged here
+the same way A04's client selector was. Seed values were back-filled from
+each proposal's existing `revisions` text (1 for Royal Trendsy's v1, 2 for
+every other seeded proposal).
+
+## File storage: StorageProvider interface, local disk, dev-only
+
+Uploaded files are validated (per-scope MIME allow-list + size cap — 20MB
+for content files, 10MB for design screenshots), filename-sanitized
+(strips path separators and anything non-alphanumeric/dash/underscore/dot),
+and stored behind a `StorageProvider` interface
+(`server/storage/storage-provider.ts`) whose only implementation right now
+writes to `.data/uploads/<uuid>` on local disk — same "outside the JS
+module graph" reasoning as the file store, since uploads happen in one
+route handler and downloads in another. Metadata (original/sanitized name,
+mime, size, uploader) is a separate `UploadedFile` record in the file store;
+`GET /api/files/[fileId]` is the only way to read bytes back, gated on the
+same client-owns-project / agency-assigned-or-admin check used everywhere
+else — never a public URL. A real deployment swaps the one class for
+S3/GCS behind the same interface.
+
+## Demo-state switcher: coarse scenario selectors, not individual field toggles
+
+Synthesizing a specific content-submission or design-version-plus-pins-
+plus-round state field-by-field would need a dozen new switcher controls.
+Instead, two coarse enums were added — `contentScenario`
+(baseline/images_submitted/images_changes_requested) and `designScenario`
+(none/v1_shared/v1_feedback_draft/round1_submitted/v2_ready/approved) —
+each of which wipes and rebuilds the relevant records for Royal Trendsy in
+one call, the same "pick a named state" pattern as the existing stage/
+brief/proposal/invoice dropdowns. Demo-synthesized design versions have no
+real uploaded screenshot (there's no upload flow in a seed script), so the
+client design review page falls back to a static placeholder image
+(`/public/placeholder-design-preview.svg`) when a version's
+`screenshotFileIds` is empty — only reachable via the demo switcher, never
+in the real upload flow.
+
+## R16/R20 states: route-level, not separate pages
+
+R16 ("Error and recovery") and R20 ("Loading review") are implemented as
+Next.js' own `error.tsx` / `loading.tsx` for the design review route
+segment, rather than content built into the page — they're framework-level
+states of the one route, not separate screens to navigate to. R15 ("Empty
+state") and R17 ("Restricted access") don't have an equivalent Next.js
+convention, so those are conditional content inside the page itself
+(`EmptyReviewCard`, `ReadOnlyNotice`), applied to both the design review
+and content pages.
+
+## R04 assignment creates a per-user notification, not just a per-role one
+
+`Notification.recipientRole` ("client"/"agency") was broad enough for
+content-submitted/design-shared/round-submitted/design-approved, but
+"notify the assignee" means one specific person, not every agency user.
+`Notification` gained an optional `recipientUserId`, a new
+`revision_round_assigned` type, and `notifyAssignee()` — called from
+`updateRevisionRoundTracking` only when `assigneeId` is actually set and
+different from the round's current one, so re-saving the same assignment
+(e.g. just changing workflow status) doesn't re-notify them. The same hook
+point is meant to cover R18 (a later phase) once that screen exists —
+nothing else changes, it's the same `updateRevisionRoundTracking` call.
+`NotificationRepository` gained a `listByProjectId` read method so this is
+actually testable; still no UI reads notifications yet.
+
+## Vitest: file-store tests now run file-by-file, not in parallel
+
+Multiple test files reset/mutate the same on-disk `.data/phase2a-store.json`
+for isolation. Vitest's default parallel-file execution raced two files'
+resets against each other once a second file (this phase's
+`content-design-service.test.ts`) started doing the same heavy mutation —
+`vitest.config.ts` now sets `fileParallelism: false`.

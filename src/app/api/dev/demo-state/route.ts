@@ -9,6 +9,8 @@ const bodySchema = z.object({
   briefStatus: z.enum(["draft", "sent", "changes_requested", "approved"]).optional(),
   proposalStatus: z.enum(["draft", "sent", "changes_requested", "accepted"]).optional(),
   invoiceStatus: z.enum(["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"]).optional(),
+  contentScenario: z.enum(["baseline", "images_submitted", "images_changes_requested"]).optional(),
+  designScenario: z.enum(["none", "v1_shared", "v1_feedback_draft", "round1_submitted", "v2_ready", "approved"]).optional(),
 });
 
 // No session check here — NODE_ENV === "development" below is the only gate.

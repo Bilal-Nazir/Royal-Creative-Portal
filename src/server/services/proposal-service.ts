@@ -50,6 +50,7 @@ export async function sendRevisedProposal(
   fields: ProposalFields,
   fee: number,
   paymentSchedule: PaymentScheduleItem[],
+  includedRevisionRounds?: number,
 ): Promise<ServiceResult<ProposalVersion>> {
   const project = await projectRepository.findById(projectId);
   if (!project) return notFound("Project not found.");
@@ -66,6 +67,7 @@ export async function sendRevisedProposal(
     fields,
     fee,
     paymentSchedule,
+    includedRevisionRounds: includedRevisionRounds ?? current.includedRevisionRounds,
     status: "sent",
     createdByName: session.name,
     createdAt: new Date().toISOString(),
@@ -85,6 +87,7 @@ export async function saveProposalDraft(
   fields: ProposalFields,
   fee: number,
   paymentSchedule: PaymentScheduleItem[],
+  includedRevisionRounds: number,
 ): Promise<ServiceResult<ProposalVersion>> {
   const project = await projectRepository.findById(projectId);
   if (!project) return notFound("Project not found.");
@@ -93,7 +96,7 @@ export async function saveProposalDraft(
 
   const current = await proposalRepository.getCurrentVersion(projectId);
   if (current && current.status === "draft") {
-    const updated: ProposalVersion = { ...current, fields, fee, paymentSchedule };
+    const updated: ProposalVersion = { ...current, fields, fee, paymentSchedule, includedRevisionRounds };
     await proposalRepository.update(updated);
     return ok(updated);
   }
@@ -105,6 +108,7 @@ export async function saveProposalDraft(
     fields,
     fee,
     paymentSchedule,
+    includedRevisionRounds,
     status: "draft",
     createdByName: session.name,
     createdAt: new Date().toISOString(),
@@ -119,6 +123,7 @@ export async function sendProposalForReview(
   fields: ProposalFields,
   fee: number,
   paymentSchedule: PaymentScheduleItem[],
+  includedRevisionRounds: number,
 ): Promise<ServiceResult<ProposalVersion>> {
   const project = await projectRepository.findById(projectId);
   if (!project) return notFound("Project not found.");
@@ -127,7 +132,7 @@ export async function sendProposalForReview(
 
   const current = await proposalRepository.getCurrentVersion(projectId);
   if (current && current.status === "draft") {
-    const updated: ProposalVersion = { ...current, fields, fee, paymentSchedule, status: "sent" };
+    const updated: ProposalVersion = { ...current, fields, fee, paymentSchedule, includedRevisionRounds, status: "sent" };
     await proposalRepository.update(updated);
     return ok(updated);
   }
@@ -139,6 +144,7 @@ export async function sendProposalForReview(
     fields,
     fee,
     paymentSchedule,
+    includedRevisionRounds,
     status: "sent",
     createdByName: session.name,
     createdAt: new Date().toISOString(),

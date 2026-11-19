@@ -19,6 +19,8 @@ export interface ProposalVersion {
   fields: ProposalFields;
   fee: number;
   paymentSchedule: PaymentScheduleItem[];
+  /** How many design revision rounds this proposal includes — R04's scope review compares rounds used against this. */
+  includedRevisionRounds: number;
   status: ProposalStatus;
   createdByName: string;
   createdAt: string;

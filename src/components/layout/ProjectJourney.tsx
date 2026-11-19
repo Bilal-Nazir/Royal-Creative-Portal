@@ -22,6 +22,8 @@ const STAGE_ROUTES: Partial<Record<Stage, string>> = {
   brief: "brief",
   proposal: "proposal",
   deposit: "deposit",
+  content: "content",
+  design: "design",
 };
 
 /**
@@ -40,9 +42,9 @@ export function ProjectJourney({ currentStage, className, projectId, basePath = 
         const glyph = status === "done" ? "✓" : status === "current" ? "●" : "○";
         const textClass = status === "current" ? "rc-brand-gradient-text" : "text-ink-secondary";
         const route = STAGE_ROUTES[stage];
-        // Only brief/proposal/deposit have pages built — only those are ever
-        // navigable. Within that set, linkableStages (if given) always links;
-        // otherwise only done/current stages do (the client-side convention).
+        // Only stages with a built page are ever navigable (see STAGE_ROUTES).
+        // Within that set, linkableStages (if given) always links; otherwise
+        // only done/current stages do (the client-side convention).
         const isLinkable = linkableStages ? linkableStages.includes(stage) : status !== "upcoming";
         const href = projectId && route && isLinkable ? `${basePath}/${projectId}/${route}` : null;
 

@@ -45,6 +45,7 @@ export default async function ProposalEditorPage({ params }: { params: Promise<{
           initial={fields}
           initialFee={proposal?.fee ?? 0}
           initialSchedule={proposal?.paymentSchedule ?? []}
+          initialIncludedRevisionRounds={proposal?.includedRevisionRounds ?? 2}
         />
       </Card>
 
