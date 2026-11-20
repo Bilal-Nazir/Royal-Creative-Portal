@@ -211,6 +211,9 @@ const invoiceSchema = new Schema(
     verifiedByUserId: String,
     verifiedByName: String,
     verifiedAt: String,
+    reportedAt: String,
+    reportedTransferDate: String,
+    reportedNote: String,
   },
   baseOptions(),
 );

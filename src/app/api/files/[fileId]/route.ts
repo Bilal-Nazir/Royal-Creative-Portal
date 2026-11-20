@@ -11,6 +11,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
   const result = await downloadFile(session, fileId);
   if (!result.ok) return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
 
+  if (result.data.kind === "redirect") {
+    return NextResponse.redirect(result.data.url, { status: 302 });
+  }
+
   const { meta, buffer } = result.data;
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

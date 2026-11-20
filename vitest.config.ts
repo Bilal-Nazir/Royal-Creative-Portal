@@ -37,6 +37,8 @@ export default defineConfig({
       MONGODB_URI: "mongodb://127.0.0.1:27017/rc_portal_test",
       REDIS_URL: testRedisUrl(),
       REPOSITORY_DRIVER: "memory",
+      // Tests exercise the simulate-success/simulate-failure demo charge path directly — PAYMENT_DRIVER=mock is explicitly allowed outside production (env.ts).
+      PAYMENT_DRIVER: "mock",
     },
   },
   resolve: {

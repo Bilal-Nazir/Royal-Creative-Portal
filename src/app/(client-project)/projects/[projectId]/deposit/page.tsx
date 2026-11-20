@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
 import { getDepositInvoice } from "@/server/services/invoice-service";
+import { getAgencySettings } from "@/server/services/settings-service";
 import { canAct } from "@/server/services/permissions";
+import { env } from "@/server/env";
 import { formatGBP, formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
@@ -10,6 +12,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DepositCheckoutForm } from "./checkout-form";
+import { BankTransferCheckout } from "@/components/project/BankTransferCheckout";
 
 export default async function DepositPage({ params }: { params: Promise<{ projectId: string }> }) {
   const session = await getSessionFromCookies();
@@ -22,6 +25,8 @@ export default async function DepositPage({ params }: { params: Promise<{ projec
   const invoice = await getDepositInvoice(projectId);
   if (!invoice) redirect("/dashboard");
 
+  const isBankTransfer = env.PAYMENT_DRIVER === "bank";
+  const settings = isBankTransfer ? await getAgencySettings() : null;
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
@@ -84,17 +89,30 @@ export default async function DepositPage({ params }: { params: Promise<{ projec
         </Card>
       ) : null}
 
-      <Card className="flex flex-col gap-4 p-6">
-        <h2 className="font-heading text-xl font-semibold text-ink">
-          {lastFailed ? `Deposit due · ${formatGBP(invoice.amount)}` : "Card payment"}
-        </h2>
-        {lastFailed ? (
-          <p className="text-sm text-ink-secondary">Invoice {invoice.invoiceNumber}</p>
-        ) : (
-          <p className="text-sm text-ink-secondary">Secure checkout powered by Stripe (demo mode)</p>
-        )}
-        {userCanAct ? <DepositCheckoutForm projectId={projectId} amount={invoice.amount} /> : null}
-      </Card>
+      {invoice.status === "unverified" ? null : (
+        <Card className="flex flex-col gap-4 p-6">
+          <h2 className="font-heading text-xl font-semibold text-ink">
+            {isBankTransfer ? "Bank transfer" : lastFailed ? `Deposit due · ${formatGBP(invoice.amount)}` : "Card payment"}
+          </h2>
+          {!isBankTransfer ? (
+            lastFailed ? (
+              <p className="text-sm text-ink-secondary">Invoice {invoice.invoiceNumber}</p>
+            ) : (
+              <p className="text-sm text-ink-secondary">Secure checkout powered by Stripe (demo mode)</p>
+            )
+          ) : null}
+          {userCanAct && isBankTransfer ? (
+            <BankTransferCheckout
+              apiPath={`/api/projects/${projectId}/deposit/report-transfer`}
+              amount={invoice.amount}
+              invoiceNumber={invoice.invoiceNumber}
+              bankDetails={settings?.paymentInstructions ?? ""}
+            />
+          ) : userCanAct ? (
+            <DepositCheckoutForm projectId={projectId} amount={invoice.amount} />
+          ) : null}
+        </Card>
+      )}
 
       {lastFailed && userCanAct ? (
         <Button href={`/projects/${projectId}/deposit/choose-date`} variant="secondary" className="w-[260px]">

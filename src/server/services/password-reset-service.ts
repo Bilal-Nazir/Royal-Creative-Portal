@@ -2,8 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { passwordResetTokenRepository, userRepository } from "../repositories/container";
 import { hashPasswordSecure } from "../auth/password";
 import { sessionService } from "../auth/session";
-import { emailProvider } from "../email/email-provider";
-import { env } from "../env";
+import { renderEmail, appUrl } from "../email";
+import { sendEmailSafely } from "./email-send";
 import { ok, badRequest, type ServiceResult } from "./result";
 import { PASSWORD_RESET_TTL_HOURS, type PasswordResetToken } from "../domain/password-reset";
 
@@ -33,12 +33,16 @@ export async function requestPasswordReset(email: string): Promise<ServiceResult
   };
   await passwordResetTokenRepository.create(token);
 
-  const link = `${env.APP_URL}/reset-password/${rawToken}`;
-  await emailProvider.send({
-    to: user.email,
+  const link = appUrl(`/reset-password/${rawToken}`);
+  const { subject, text, html } = renderEmail({
     subject: "Reset your Royal Creative password",
-    body: `Reset your password here (expires in ${PASSWORD_RESET_TTL_HOURS} hour):\n${link}\n\nIf you didn't request this, you can ignore this email.`,
+    preview: "Password reset requested",
+    heading: "Reset your password",
+    body: `We received a request to reset your password. This link expires in ${PASSWORD_RESET_TTL_HOURS} hour. If you didn't request this, you can ignore this email.`,
+    ctaLabel: "Reset password",
+    ctaUrl: link,
   });
+  await sendEmailSafely({ to: user.email, subject, text, html });
 
   return ok(null);
 }

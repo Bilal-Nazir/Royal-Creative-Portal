@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";
-import { NotImplementedButton } from "@/components/ui/NotImplementedButton";
 import { BriefDocument } from "@/components/project/BriefDocument";
 import { CommentThread } from "@/components/project/CommentThread";
 import { BriefApproveActions } from "./approve-actions";
@@ -58,7 +57,11 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
             title={`Website brief · Version ${brief.versionNumber}`}
             fields={brief.fields}
             variant="paper"
-            action={<NotImplementedButton label="Download PDF brief" />}
+            action={
+              <Button href={`/api/projects/${projectId}/brief/pdf`} variant="secondary" className="w-[196px]">
+                Download PDF brief
+              </Button>
+            }
           />
         </div>
       </>
@@ -87,7 +90,11 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
         title={`Website brief · Version ${brief.versionNumber}`}
         fields={brief.fields}
         variant="paper"
-        action={<NotImplementedButton label="Download PDF brief" />}
+        action={
+          <Button href={`/api/projects/${projectId}/brief/pdf`} variant="secondary" className="w-[196px]">
+            Download PDF brief
+          </Button>
+        }
       />
 
       <Card className="flex flex-col gap-4 px-6 py-3">

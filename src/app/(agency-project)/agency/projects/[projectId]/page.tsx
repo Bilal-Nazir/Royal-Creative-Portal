@@ -4,6 +4,8 @@ import { projectRepository } from "@/server/repositories/container";
 import { getInternalComments } from "@/server/services/internal-comment-service";
 import { getScopeChanges } from "@/server/services/scope-change-service";
 import { getBriefForProject } from "@/server/services/brief-service";
+import { userRepository } from "@/server/repositories/container";
+import { isClientUser } from "@/server/domain/user";
 import { formatDate, formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
@@ -15,6 +17,7 @@ import { ListRow } from "@/components/ui/ListRow";
 import { AssigneeChip } from "@/components/ui/AssigneeChip";
 import { CreateScopeChangeForm } from "@/components/project/CreateScopeChangeForm";
 import { SkipBriefButton } from "@/components/project/SkipBriefButton";
+import { InviteClientButton } from "@/components/project/InviteClientButton";
 import { InternalCommentForm } from "./internal-comment-form";
 
 const SCOPE_CHANGE_TONE: Record<string, "success" | "warning" | "neutral"> = { accepted: "success", declined: "neutral", pending: "warning" };
@@ -27,16 +30,18 @@ export default async function AgencyProjectDetailPage({ params }: { params: Prom
   const project = await projectRepository.findById(projectId);
   if (!project) redirect("/agency/projects");
 
-  const [comments, scopeChanges, brief] = await Promise.all([
+  const [comments, scopeChanges, brief, clientUsers] = await Promise.all([
     getInternalComments(projectId),
     getScopeChanges(projectId),
     getBriefForProject(projectId),
+    userRepository.listClientUsers(),
   ]);
 
   const canSkipBrief =
     (session.agencyRole === "owner" || session.agencyRole === "admin") &&
     project.stage === "brief" &&
     (!brief || brief.status === "draft");
+  const hasClientAccount = clientUsers.filter(isClientUser).some((u) => u.clientId === project.clientId);
 
   return (
     <>
@@ -70,6 +75,13 @@ export default async function AgencyProjectDetailPage({ params }: { params: Prom
             <div className="flex flex-col gap-2">
               <h3 className="font-heading text-base font-semibold text-ink">Stage control</h3>
               <SkipBriefButton projectId={projectId} />
+            </div>
+          ) : null}
+          {!hasClientAccount ? (
+            <div className="flex flex-col gap-2">
+              <h3 className="font-heading text-base font-semibold text-ink">Client access</h3>
+              <p className="text-sm text-ink-secondary">{project.clientName} doesn&apos;t have a sign-in yet.</p>
+              <InviteClientButton clientId={project.clientId} />
             </div>
           ) : null}
         </Card>

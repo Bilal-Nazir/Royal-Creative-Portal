@@ -1,9 +1,11 @@
 import type { ClientSession } from "mongoose";
 import { invoiceRepository, projectRepository } from "../repositories/container";
-import { paymentProvider } from "../payments/mock-provider";
+import { paymentProvider } from "../payments";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, badRequest, notFound, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";
+import { notifyAgency, notifyClient } from "./notification-service";
+import { formatGBP } from "../../lib/format";
 import type { SessionPayload } from "../auth/session";
 import type { Invoice, InvoiceStatus, InvoiceType } from "../domain/invoice";
 import type { Project } from "../domain/project";
@@ -138,6 +140,7 @@ export async function payDeposit(
       lastFailureReason: undefined,
     };
     await invoiceRepository.update(updated);
+    await notifyClient(projectId, "payment_confirmed", "Payment confirmed", `Your ${formatGBP(updated.amount)} payment has been confirmed.`);
     await tryAdvanceStageIfGated(project);
     return ok({ invoice: updated, charged: true });
   }
@@ -145,6 +148,47 @@ export async function payDeposit(
   const updated: Invoice = { ...invoice, lastFailureReason: result.errorMessage };
   await invoiceRepository.update(updated);
   return ok({ invoice: updated, charged: false, errorMessage: result.errorMessage });
+}
+
+/** Bank-transfer checkout's "I've made the transfer" — client self-reports, agency verifies in A08 (existing flow). */
+export type ReportedInvoiceKind = "deposit" | "final";
+
+export interface ReportBankTransferInput {
+  transferDate?: string;
+  note?: string;
+}
+
+export async function reportBankTransfer(
+  session: SessionPayload,
+  projectId: string,
+  kind: ReportedInvoiceKind,
+  input: ReportBankTransferInput,
+): Promise<ServiceResult<Invoice>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+  const denied = assertClientCanActOnProject<Invoice>(session, project);
+  if (denied) return denied;
+
+  const invoice = kind === "deposit" ? await invoiceRepository.getDepositInvoice(projectId) : await getFinalInvoice(projectId);
+  if (!invoice) return notFound("Invoice not found.");
+  if (invoice.status === "paid") return badRequest("This invoice is already paid.");
+  if (invoice.status === "scheduled") return badRequest("This invoice is not due yet.");
+
+  const updated: Invoice = {
+    ...invoice,
+    status: "unverified",
+    reportedAt: new Date().toISOString(),
+    reportedTransferDate: input.transferDate,
+    reportedNote: input.note,
+  };
+  await invoiceRepository.update(updated);
+  await notifyAgency(
+    projectId,
+    "transfer_reported",
+    "Bank transfer reported",
+    `${session.name} reported a bank transfer of ${formatGBP(invoice.amount)} for invoice ${invoice.invoiceNumber}.`,
+  );
+  return ok(updated);
 }
 
 export interface PayFinalInvoiceOutcome {
@@ -183,6 +227,7 @@ export async function payFinalInvoice(
       lastFailureReason: undefined,
     };
     await invoiceRepository.update(updated);
+    await notifyClient(projectId, "payment_confirmed", "Payment confirmed", `Your ${formatGBP(updated.amount)} payment has been confirmed.`);
     const updatedProject = await tickFinalPaymentIfApplicable(updated, project);
     await tryAdvanceStageIfGated(updatedProject);
     return ok({ invoice: updated, charged: true });
@@ -213,6 +258,7 @@ export async function markFinalInvoicePaidManually(session: SessionPayload, proj
     verifiedAt: new Date().toISOString(),
   };
   await invoiceRepository.update(updated);
+  await notifyClient(projectId, "payment_confirmed", "Payment confirmed", `Your ${formatGBP(updated.amount)} payment has been confirmed.`);
   const updatedProject = await tickFinalPaymentIfApplicable(updated, project);
   await tryAdvanceStageIfGated(updatedProject);
   return ok(updated);
@@ -255,6 +301,7 @@ export async function verifyInvoicePayment(session: SessionPayload, projectId: s
     verifiedAt: new Date().toISOString(),
   };
   await invoiceRepository.update(updated);
+  await notifyClient(projectId, "payment_confirmed", "Payment confirmed", `Your ${formatGBP(updated.amount)} payment has been confirmed.`);
   await tryAdvanceStageIfGated(project);
   return ok(updated);
 }
@@ -279,6 +326,7 @@ export async function markInvoicePaidManually(session: SessionPayload, projectId
     verifiedAt: new Date().toISOString(),
   };
   await invoiceRepository.update(updated);
+  await notifyClient(projectId, "payment_confirmed", "Payment confirmed", `Your ${formatGBP(updated.amount)} payment has been confirmed.`);
   await tryAdvanceStageIfGated(project);
   return ok(updated);
 }
@@ -304,6 +352,7 @@ export async function setInvoiceStatus(
   };
   await invoiceRepository.update(updated);
   if (status === "paid") {
+    await notifyClient(invoice.projectId, "payment_confirmed", "Payment confirmed", `Your ${formatGBP(updated.amount)} payment has been confirmed.`);
     const updatedProject = await tickFinalPaymentIfApplicable(updated, project);
     await tryAdvanceStageIfGated(updatedProject);
   }

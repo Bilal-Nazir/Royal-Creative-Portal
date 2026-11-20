@@ -29,8 +29,10 @@ export default async function StripeSettingsPage() {
       />
       <PageHeader eyebrow="AGENCY WORKSPACE" title="Stripe settings" description="Connect your Stripe account to accept online payments." />
       <Card className="flex flex-col gap-4 p-6">
-        <h2 className="font-heading text-xl font-semibold text-ink">Stripe account</h2>
-        <p className="text-sm text-ink-secondary">Not connected</p>
+        <h2 className="font-heading text-xl font-semibold text-ink">Card payments: not set up yet</h2>
+        <p className="text-sm text-ink-secondary">
+          Clients currently pay by bank transfer (see Payments). Connect Stripe here once it&apos;s available to also accept card payments.
+        </p>
         <NotImplementedButton label="Connect Stripe" message="Available after backend setup." className="items-start" />
       </Card>
     </>

@@ -12,7 +12,11 @@ export type NotificationType =
   | "website_live"
   | "scope_change_sent"
   | "scope_change_accepted"
-  | "scope_change_declined";
+  | "scope_change_declined"
+  | "brief_sent"
+  | "proposal_sent"
+  | "transfer_reported"
+  | "payment_confirmed";
 
 /**
  * Recorded by services on key events (see notification-service.ts). No UI

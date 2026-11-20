@@ -4,7 +4,7 @@ Royal Creative client/agency portal. Figma file `q59B9tWGSDdfXZXSSNDazB`.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-based tokens, no config file) · Zod · lucide-react (icons Figma doesn't have) · Vitest · Playwright. MongoDB via Mongoose (real persistence, Phase 4a) · Redis via ioredis (sessions, rate limiting, cache) · argon2 (real password hashing). No other UI libraries. npm.
+Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-based tokens, no config file) · Zod · lucide-react (icons Figma doesn't have) · Vitest · Playwright. MongoDB via Mongoose (real persistence, Phase 4a) · Redis via ioredis (sessions, rate limiting, cache) · argon2 (real password hashing) · @aws-sdk/client-s3 + s3-request-presigner (file storage, Phase 4b) · nodemailer (real email, Phase 4b) · @react-pdf/renderer (PDF brief, Phase 4b). No other UI libraries. npm.
 
 ## Local setup (Phase 4a)
 
@@ -18,6 +18,53 @@ Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-base
   5. `mongosh --eval "rs.status()"` should now show `"stateStr": "PRIMARY"`.
 - Tests never touch dev data: `vitest.config.ts` points `MONGODB_URI` at `rc_portal_test` and `REDIS_URL` at Redis DB index 1 (dev uses DB 0), and sets `REPOSITORY_DRIVER=memory` so most tests don't touch Mongo at all. `server/repositories/mongo/mongo-repositories.test.ts` is the exception — it talks to the real `rc_portal_test` database directly and skips itself (not a failure) if Mongo isn't reachable.
 - `npm run db:seed` (`scripts/seed-mongo.ts`, run via `tsx`) wipes every collection in `MONGODB_URI` and reseeds the same demo data as the memory driver, asking for a typed "yes" confirmation first. Passwords are re-hashed with argon2 at seed time (`password123` for every seeded login, same as before).
+
+## Payments, storage and email (Phase 4b)
+
+Three more driver-switched integrations, same pattern as `REPOSITORY_DRIVER`
+— a single `server/<area>/index.ts` picks the implementation from env, and
+nothing above that layer (services, routes, UI) touches the concrete class.
+
+- **`PAYMENT_DRIVER=bank`** (default, including production) or `mock`
+  (`env.ts` refuses `mock` when `NODE_ENV=production`, so a misconfigured
+  deploy can't accidentally skip real payment collection). `bank`
+  (`server/payments/bank-transfer-provider.ts`) backs the client-reports →
+  agency-verifies flow below; `mock` is the Phase 2a demo card simulator,
+  still used by the vitest suite (`vitest.config.ts` sets it explicitly).
+  No Stripe driver yet — `PaymentProvider.charge()` is the seam it'll plug
+  into.
+- **Bank transfer checkout** (C08 deposit, and the final-balance checkout):
+  shows the amount, the invoice number as payment reference, and the
+  agency's bank details (A20's existing `paymentInstructions` field — no
+  new settings field was needed), each with a copy button. "I've made the
+  transfer" (`reportBankTransfer`, invoice-service.ts) sets the invoice to
+  `"unverified"` and notifies the agency; A08's existing verify flow is
+  unchanged — it already branched on `"unverified"` vs not. Empty bank
+  details show "Payment details coming soon" to the client and a warning
+  banner on A07 (agency Payments) instead of a broken checkout.
+- **`STORAGE_DRIVER=local`** (default) or `s3` (`server/storage/s3-provider.ts`,
+  AWS S3 or any S3-compatible endpoint — set `S3_ENDPOINT` for Cloudflare
+  R2). Private bucket; `GET /api/files/[fileId]` redirects to a 5-minute
+  signed URL under `s3`, or streams bytes from disk under `local` — same
+  upload validation (type/size) either way.
+- **`EMAIL_DRIVER=console`** (default) or `smtp` (nodemailer,
+  `server/email/smtp-provider.ts`). One shared branded template
+  (`server/email/templates.ts`'s `renderEmail` — dark header, one message,
+  one button, plus a plain-text version generated from the same input) for
+  every transactional email: invite, password reset, brief/proposal sent,
+  design/development shared, revision submitted, scope change sent,
+  invoice due, transfer reported, payment confirmed, launch
+  scheduled/live. Sent from the existing notification events
+  (`notification-service.ts`'s `createNotification`) after the Notification
+  record is written, gated on Settings' `emailAlerts` toggle, through
+  `server/services/email-send.ts`'s `sendEmailSafely` — a failed send is
+  logged and never throws back at the caller.
+- **PDF brief**: `GET /api/projects/[projectId]/brief/pdf` renders the
+  current brief version server-side (`server/pdf/brief-pdf.tsx`,
+  `@react-pdf/renderer`) with the same access check as viewing the brief
+  page (the owning client, or an agency owner/admin/assignee) — not the
+  stricter participant-only action gate, since viewers can view (and
+  download) the brief too.
 
 ## Folder structure
 
@@ -317,6 +364,11 @@ needs `next dev`, `playwright.config.ts`'s e2e suite also runs against
   Origin check on every mutating API request. Mongo transactions around
   proposal acceptance, scope-change acceptance, and stage transitions. See
   DESIGN_NOTES for the full list of deviations and substitutions.
+- **Phase 4b** — bank transfer payments (driver-switched, default and
+  production-safe), S3/R2 file storage behind signed URLs, real SMTP email
+  with one shared branded template wired into the existing notification
+  events, and a server-generated PDF brief. A16/A18 gained an "Invite
+  client" action. See DESIGN_NOTES for the full list.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 

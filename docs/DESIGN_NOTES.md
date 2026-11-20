@@ -1049,3 +1049,113 @@ environment doesn't always have MongoDB started, and a hard failure there
 would make `npm run test` look broken for a reason unrelated to the code —
 skipped (visibly, in the test output) is more honest than either failing
 the whole suite or silently asserting nothing.
+
+# Design notes — Phase 4b (bank transfer, storage, email, PDF)
+
+## Bank transfer provider doesn't actually "charge" anything
+
+`BankTransferProvider.charge()` exists only to satisfy `PaymentProvider`'s
+shared interface — the real flow (client reports a transfer, agency
+verifies it in A08) never calls it; there's nothing to attempt
+synchronously for a bank transfer the way a card charge works. It's there
+so a future Stripe driver has the exact same seam to plug into, and so the
+interface stays genuinely shared rather than drifting into "really just
+for cards."
+
+## No new Settings field for bank details — `paymentInstructions` already existed
+
+A20 already had a free-text `paymentInstructions` field (seeded with real
+bank details), unused by any checkout screen until now. Reused as-is
+rather than adding structured account-number/sort-code fields — "bank
+details/payment instructions" in the brief is exactly what this field
+already models, and a second field would have meant two places to keep in
+sync for no real benefit.
+
+## `PAYMENT_DRIVER=mock` needed an explicit test override
+
+Switching the default driver from the old hardcoded `MockPaymentProvider`
+singleton to a `PAYMENT_DRIVER`-selected one broke the existing "simulate
+success/failure" tests — they got `BankTransferProvider` (which never
+fails) once the default flipped to `bank`. `vitest.config.ts` now sets
+`PAYMENT_DRIVER: "mock"` explicitly, which `env.ts` already allows outside
+production.
+
+## Invoice gets three new optional fields for the client's own report
+
+`Invoice.reportedAt`/`reportedTransferDate`/`reportedNote` — set by
+`reportBankTransfer`, distinct from `promisedDate` (R11's future promise,
+before any transfer happens) and from the `verifiedBy*` fields (the
+agency's later confirmation). All additive/optional — no existing read of
+`Invoice` needed to change.
+
+## Email is one shared template, not 13 bespoke ones
+
+`renderEmail()` (`server/email/templates.ts`) takes a heading/body/
+optional button and returns both the HTML and a plain-text version
+generated from the same input, so the two can't drift apart. Every
+transactional email — invites, password reset, and every notification
+event — calls the same function with different copy. `EmailMessage.body`
+was renamed to `.text` (and gained an optional `.html`) to make room for
+this; the two Phase 4a call sites (invite accept, password reset) and
+their tests were updated to match.
+
+## Notification emails resolve a recipient address, not just a role
+
+`Notification.recipientRole`/`recipientUserId` were enough for the in-app
+bell, but an email needs an actual address. `emailNotification()`
+(notification-service.ts) resolves it: for `"client"`, the project's
+participant contact (or first client user) on that `clientId`; for
+`"agency"`, the specific `recipientUserId` if set, else the project's
+assignee. Gated on Settings' `emailAlerts` toggle before any lookup runs,
+and never throws — a failed send is logged by `sendEmailSafely`
+(`server/services/email-send.ts`), which every email call site now goes
+through.
+
+## New `NotificationType`s needed for two previously-silent events
+
+"Brief sent" and "proposal sent" never notified anyone before this phase
+— `sendBriefForReview`/`sendRevisedBrief` and `sendProposalForReview`/
+`sendRevisedProposal` just changed the version's status. Added
+`brief_sent`/`proposal_sent` (and `transfer_reported`/`payment_confirmed`
+for the new bank-transfer flow) to `NotificationType`, with entries in
+both the agency/client "which page to link to" maps. Every other email in
+the brief's list (design/development shared, revision submitted, scope
+change sent, invoice due, launch scheduled, website live) already had a
+`notifyClient`/`notifyAgency` call site from an earlier phase — only the
+email-sending hook was new for those.
+
+## StorageProvider gained `getDownloadUrl()`, returning `null` for local disk
+
+Rather than a parallel "signed URL provider" interface, `getDownloadUrl()`
+sits on the existing `StorageProvider` — local disk returns `null` (no
+such concept), `S3StorageProvider` returns a real 5-minute presigned URL
+with the response `Content-Disposition`/`Content-Type` baked into the
+signature so a redirected download still gets the right filename.
+`downloadFile` (file-service.ts) tries this first and only falls back to
+`read()` (streaming bytes through the Next.js server) when it's null —
+`DownloadableFile` became a `{kind: "redirect", url} | {kind: "buffer",
+buffer}` union so the route handler (`/api/files/[fileId]`) knows which to
+do. Upload validation (`upload-validation.ts`) is unchanged — it runs
+before either provider's `save()`.
+
+## PDF brief uses a text wordmark, not the SVG logo
+
+`@react-pdf/renderer`'s `Image` component doesn't render SVG. Rather than
+rasterizing `public/brand/royal-creative-logo.svg` to a PNG at build time
+for one PDF header, the PDF renders "ROYAL CREATIVE" as styled text in the
+brand ink colour — still a branded header (dark rule, wordmark, tagline),
+just not the vector mark. Access control mirrors the brief *page's* own
+rule (owning client, or agency owner/admin/assignee) rather than the
+stricter participant-only action gate `assertClientCanActOnProject` uses
+elsewhere — a client viewer can view the brief page, so they can download
+its PDF too.
+
+## A16/A18 "Invite client" — reuses Phase 4a's invite service, hidden once accepted
+
+Both show the button only when no `ClientUser` exists yet for the
+project's `clientId` (checked via `userRepository.listClientUsers()`), so
+it disappears once the invite is accepted rather than offering to
+re-invite someone who already has access. A18 (a contact, not yet
+necessarily a project) only shows it once the contact has a linked
+`proposalProjectId` — invites need a real `clientId` to attach a
+`ClientUser` to, which only exists once a project does.

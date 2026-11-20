@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { inviteRepository, userRepository } from "../repositories/container";
 import { hashPasswordSecure } from "../auth/password";
-import { emailProvider } from "../email/email-provider";
-import { env } from "../env";
+import { renderEmail, appUrl } from "../email";
+import { sendEmailSafely } from "./email-send";
 import { ok, forbidden, notFound, badRequest, type ServiceResult } from "./result";
 import type { SessionPayload } from "../auth/session";
 import type { Invite, InviteKind } from "../domain/invite";
@@ -89,12 +89,17 @@ async function createInvite(
   };
   await inviteRepository.create(invite);
 
-  const link = `${env.APP_URL}/invite/${rawToken}`;
-  await emailProvider.send({
-    to: fields.email,
+  // Email goes out after the write above has succeeded; a failed send is logged, never thrown back at the caller.
+  const link = appUrl(`/invite/${rawToken}`);
+  const { subject, text, html } = renderEmail({
     subject: "You've been invited to Royal Creative",
-    body: `${session.name} invited you to join Royal Creative. Set your password here (expires in ${INVITE_TTL_HOURS} hours):\n${link}`,
+    preview: "You've been invited",
+    heading: "You're invited to Royal Creative",
+    body: `${session.name} invited you to join Royal Creative. Set your password to get started (this link expires in ${INVITE_TTL_HOURS} hours).`,
+    ctaLabel: "Set your password",
+    ctaUrl: link,
   });
+  await sendEmailSafely({ to: fields.email, subject, text, html });
 
   return ok(invite);
 }

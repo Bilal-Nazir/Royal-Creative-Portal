@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { listAllInvoicesWithProject, computePaymentMetrics } from "@/server/services/invoice-service";
+import { getAgencySettings } from "@/server/services/settings-service";
+import { env } from "@/server/env";
 import { formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { InvoiceList } from "@/components/project/InvoiceList";
 
@@ -16,8 +19,9 @@ export default async function AgencyPaymentsPage() {
     redirect("/sign-in");
   }
 
-  const rows = await listAllInvoicesWithProject();
+  const [rows, settings] = await Promise.all([listAllInvoicesWithProject(), getAgencySettings()]);
   const metrics = computePaymentMetrics(rows.map((r) => r.invoice));
+  const bankDetailsMissing = env.PAYMENT_DRIVER === "bank" && !settings.paymentInstructions.trim();
 
   return (
     <>
@@ -37,6 +41,19 @@ export default async function AgencyPaymentsPage() {
           </Button>
         }
       />
+
+      {bankDetailsMissing ? (
+        <Card className="flex flex-col gap-2 p-6">
+          <Badge tone="warning">Action needed</Badge>
+          <p className="text-sm text-ink-secondary">
+            No bank details are set, so clients can&apos;t see where to send payment. Add them in{" "}
+            <a href="/agency/settings" className="underline">
+              Settings
+            </a>
+            .
+          </p>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Collected" value={formatGBP(metrics.collected)} deltaLabel="Across all paid invoices" />

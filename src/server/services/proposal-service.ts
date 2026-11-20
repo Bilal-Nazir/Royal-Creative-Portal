@@ -4,6 +4,7 @@ import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./per
 import { ok, notFound, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";
 import { createInvoicesFromPaymentSchedule } from "./invoice-service";
+import { notifyClient } from "./notification-service";
 import type { SessionPayload } from "../auth/session";
 import type { ProposalVersion, AcceptanceRecord, ProposalFields, PaymentScheduleItem } from "../domain/proposal";
 
@@ -74,6 +75,7 @@ export async function sendRevisedProposal(
     createdAt: new Date().toISOString(),
   };
   await proposalRepository.create(revised);
+  await notifyClient(projectId, "proposal_sent", "Revised proposal sent", `${session.name} sent a revised proposal for your review.`);
   return ok(revised);
 }
 
@@ -135,6 +137,7 @@ export async function sendProposalForReview(
   if (current && current.status === "draft") {
     const updated: ProposalVersion = { ...current, fields, fee, paymentSchedule, includedRevisionRounds, status: "sent" };
     await proposalRepository.update(updated);
+    await notifyClient(projectId, "proposal_sent", "Proposal sent", `${session.name} sent a proposal for your review.`);
     return ok(updated);
   }
 
@@ -151,6 +154,7 @@ export async function sendProposalForReview(
     createdAt: new Date().toISOString(),
   };
   await proposalRepository.create(sent);
+  await notifyClient(projectId, "proposal_sent", "Proposal sent", `${session.name} sent a proposal for your review.`);
   return ok(sent);
 }
 

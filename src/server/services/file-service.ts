@@ -1,5 +1,5 @@
 import { uploadedFileRepository, projectRepository } from "../repositories/container";
-import { storageProvider } from "../storage/storage-provider";
+import { storageProvider } from "../storage";
 import { validateUpload, sanitizeFilename } from "../storage/upload-validation";
 import { assertClientCanActOnProject, assertAgencyCanManageProject, filterProjectsForAgencyUser } from "./permissions";
 import { ok, badRequest, notFound, forbidden, type ServiceResult } from "./result";
@@ -77,12 +77,16 @@ export async function listFilesForSession(session: SessionPayload): Promise<File
   return rows.sort((a, b) => new Date(b.file.createdAt).getTime() - new Date(a.file.createdAt).getTime());
 }
 
-export interface DownloadableFile {
-  meta: UploadedFile;
-  buffer: Buffer;
-}
+export type DownloadableFile = { meta: UploadedFile } & ({ kind: "redirect"; url: string } | { kind: "buffer"; buffer: Buffer });
 
-/** Authorized download — the only way to read a file's bytes. Never served as a public URL. */
+const SIGNED_URL_EXPIRY_SECONDS = 5 * 60;
+
+/**
+ * Authorized download — the only way to read a file's bytes (or a link to
+ * them). Never served as a public URL. STORAGE_DRIVER=s3 returns a 5-minute
+ * signed URL to redirect to instead of proxying bytes through this server;
+ * local disk has no such concept, so it falls back to reading the bytes.
+ */
 export async function downloadFile(session: SessionPayload, fileId: string): Promise<ServiceResult<DownloadableFile>> {
   const meta = await uploadedFileRepository.findById(fileId);
   if (!meta) return notFound("File not found.");
@@ -95,7 +99,14 @@ export async function downloadFile(session: SessionPayload, fileId: string): Pro
     session.role === "agency" && (session.agencyRole === "owner" || session.agencyRole === "admin" || project.assigneeId === session.userId);
   if (!isClientOnProject && !isAgencyOnProject) return forbidden("You don't have access to this file.");
 
+  const url = await storageProvider.getDownloadUrl(meta.storageId, {
+    expirySeconds: SIGNED_URL_EXPIRY_SECONDS,
+    filename: meta.sanitizedName,
+    mimeType: meta.mimeType,
+  });
+  if (url) return ok({ meta, kind: "redirect", url });
+
   const buffer = await storageProvider.read(meta.storageId);
   if (!buffer) return notFound("File not found.");
-  return ok({ meta, buffer });
+  return ok({ meta, kind: "buffer", buffer });
 }

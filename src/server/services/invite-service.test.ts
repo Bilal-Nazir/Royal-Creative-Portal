@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { inviteTeamMember, inviteClient, acceptInvite, getInviteByToken } from "./invite-service";
 import { inviteRepository } from "../repositories/container";
 import { resetStore } from "../repositories/in-memory/memory-store";
-import { emailProvider } from "../email/email-provider";
+import { emailProvider } from "../email";
 import type { SessionPayload } from "../auth/session";
 
 /** Mirrors the hashing invite-service.ts does internally — needed here only to look a stored invite up directly for the expiry test below. */
@@ -24,7 +24,7 @@ const clientParticipant: SessionPayload = {
 };
 
 function extractLink(sendCalls: { calls: unknown[][] }): string {
-  const body = (sendCalls.calls.at(-1)?.[0] as { body: string }).body;
+  const body = (sendCalls.calls.at(-1)?.[0] as { text: string }).text;
   const match = body.match(/https?:\/\/\S+/);
   if (!match) throw new Error("no link found in sent email body");
   return match[0];

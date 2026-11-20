@@ -3,7 +3,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { requestPasswordReset, resetPassword, isResetTokenValid } from "./password-reset-service";
 import { passwordResetTokenRepository, userRepository } from "../repositories/container";
 import { resetStore } from "../repositories/in-memory/memory-store";
-import { emailProvider } from "../email/email-provider";
+import { emailProvider } from "../email";
 import { verifyPassword } from "../auth/password";
 import { sessionService } from "../auth/session";
 import { getRedis } from "../db/redis";
@@ -15,7 +15,7 @@ function hashToken(rawToken: string): string {
 }
 
 function extractLink(sendCalls: { calls: unknown[][] }): string {
-  const body = (sendCalls.calls.at(-1)?.[0] as { body: string }).body;
+  const body = (sendCalls.calls.at(-1)?.[0] as { text: string }).text;
   const match = body.match(/https?:\/\/\S+/);
   if (!match) throw new Error("no link found in sent email body");
   return match[0];

@@ -2,6 +2,7 @@ import { briefRepository, commentRepository, projectRepository } from "../reposi
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, notFound, forbidden, badRequest, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";
+import { notifyClient } from "./notification-service";
 import type { SessionPayload } from "../auth/session";
 import type { BriefVersion, BriefFields } from "../domain/brief";
 import type { Comment } from "../domain/comment";
@@ -86,6 +87,7 @@ export async function sendRevisedBrief(
     createdAt: new Date().toISOString(),
   };
   await briefRepository.create(revised);
+  await notifyClient(projectId, "brief_sent", "Revised brief sent", `${session.name} sent a revised brief for your review.`);
   return ok(revised);
 }
 
@@ -140,6 +142,7 @@ export async function sendBriefForReview(
   if (current && current.status === "draft") {
     const updated: BriefVersion = { ...current, fields, status: "sent" };
     await briefRepository.update(updated);
+    await notifyClient(projectId, "brief_sent", "Brief sent", `${session.name} sent the project brief for your review.`);
     return ok(updated);
   }
 
@@ -153,6 +156,7 @@ export async function sendBriefForReview(
     createdAt: new Date().toISOString(),
   };
   await briefRepository.create(sent);
+  await notifyClient(projectId, "brief_sent", "Brief sent", `${session.name} sent the project brief for your review.`);
   return ok(sent);
 }
 

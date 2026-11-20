@@ -23,6 +23,10 @@ export interface Invoice {
   verifiedByUserId?: string;
   verifiedByName?: string;
   verifiedAt?: string;
+  /** Set by "I've made the transfer" (bank transfer checkout) — the client's own report, not a verification. */
+  reportedAt?: string;
+  reportedTransferDate?: string;
+  reportedNote?: string;
 }
 
 /**

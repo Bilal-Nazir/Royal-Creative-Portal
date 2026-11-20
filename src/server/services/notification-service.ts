@@ -1,14 +1,19 @@
 import type { ClientSession } from "mongoose";
-import { notificationRepository, projectRepository } from "../repositories/container";
+import { notificationRepository, projectRepository, userRepository, agencySettingsRepository } from "../repositories/container";
 import type { SessionPayload } from "../auth/session";
 import { forbidden, notFound, ok, type ServiceResult } from "./result";
+import { isClientUser, isAgencyUser } from "../domain/user";
+import { renderEmail, appUrl } from "../email";
+import { sendEmailSafely } from "./email-send";
 import type { Notification, NotificationType } from "../domain/notification";
+import type { Project } from "../domain/project";
 
 /**
  * Records key events (content submitted, design shared, revision round
  * submitted, design approved, work assigned) for both sides of a project.
- * No UI reads these yet — that's a later phase — but the records exist now
- * so that UI can be built without touching the services that create them.
+ * Also emails the recipient — after the notification record above is
+ * written, never before, and only if it fails to break the caller's
+ * action (see email-send.ts) — gated on Settings' emailAlerts toggle.
  */
 async function createNotification(
   projectId: string,
@@ -30,6 +35,50 @@ async function createNotification(
     createdAt: new Date().toISOString(),
   };
   await notificationRepository.create(notification, session);
+  await emailNotification(notification);
+}
+
+/** Resolves a recipient email for a project-scoped notification and sends it, respecting the emailAlerts toggle. Never throws. */
+async function emailNotification(notification: Notification): Promise<void> {
+  const settings = await agencySettingsRepository.get();
+  if (!settings.notifications.emailAlerts) return;
+
+  const project = await projectRepository.findById(notification.projectId);
+  if (!project) return;
+
+  const to = await resolveRecipientEmail(notification, project);
+  if (!to) return;
+
+  const path =
+    notification.recipientRole === "agency"
+      ? (AGENCY_TYPE_PATH[notification.type] ? `/agency/projects/${project.id}/${AGENCY_TYPE_PATH[notification.type]}` : `/agency/projects/${project.id}`)
+      : (CLIENT_TYPE_PATH[notification.type] ? `/projects/${project.id}/${CLIENT_TYPE_PATH[notification.type]}` : `/projects/${project.id}/brief`);
+
+  const { subject, text, html } = renderEmail({
+    subject: notification.title,
+    preview: project.name,
+    heading: notification.title,
+    body: notification.body,
+    ctaLabel: "View in Royal Creative",
+    ctaUrl: appUrl(path),
+  });
+  await sendEmailSafely({ to, subject, text, html });
+}
+
+async function resolveRecipientEmail(notification: Notification, project: Project): Promise<string | null> {
+  if (notification.recipientRole === "client") {
+    const clientUsers = (await userRepository.listClientUsers()).filter(isClientUser).filter((u) => u.clientId === project.clientId);
+    const participant = clientUsers.find((u) => u.clientRole === "participant") ?? clientUsers[0];
+    return participant?.email ?? null;
+  }
+
+  if (notification.recipientUserId) {
+    const user = await userRepository.findById(notification.recipientUserId);
+    return user?.email ?? null;
+  }
+
+  const assignee = await userRepository.findById(project.assigneeId);
+  return assignee && isAgencyUser(assignee) ? assignee.email : null;
 }
 
 export async function notifyAgency(
@@ -69,6 +118,7 @@ const AGENCY_TYPE_PATH: Partial<Record<NotificationType, string>> = {
   build_approved: "development",
   launch_scheduled: "launch",
   website_live: "launch",
+  transfer_reported: "deposit",
 };
 const CLIENT_TYPE_PATH: Partial<Record<NotificationType, string>> = {
   ...AGENCY_TYPE_PATH,
@@ -76,6 +126,9 @@ const CLIENT_TYPE_PATH: Partial<Record<NotificationType, string>> = {
   scope_change_sent: "scope-changes",
   scope_change_accepted: "scope-changes",
   scope_change_declined: "scope-changes",
+  brief_sent: "brief",
+  proposal_sent: "proposal",
+  payment_confirmed: "deposit",
 };
 
 export interface NotificationWithLink extends Notification {

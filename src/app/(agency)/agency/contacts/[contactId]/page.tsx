@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { getContact, listStages, listContactActivity } from "@/server/services/contact-service";
-import { proposalRepository, projectRepository } from "@/server/repositories/container";
+import { proposalRepository, projectRepository, userRepository } from "@/server/repositories/container";
+import { isClientUser } from "@/server/domain/user";
 import { formatDate, formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
@@ -10,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";
 import { LogFollowUpForm } from "@/components/project/LogFollowUpForm";
+import { InviteClientButton } from "@/components/project/InviteClientButton";
 
 export default async function ContactDetailPage({ params }: { params: Promise<{ contactId: string }> }) {
   const session = await getSessionFromCookies();
@@ -26,6 +28,9 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
   ]);
   const stage = stages.find((s) => s.id === contact.stageId);
   const proposal = project ? await proposalRepository.getCurrentVersion(project.id) : null;
+  const hasClientAccount = project
+    ? (await userRepository.listClientUsers()).filter(isClientUser).some((u) => u.clientId === project.clientId)
+    : false;
 
   return (
     <>
@@ -66,6 +71,9 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
             </Button>
           ) : null}
           <LogFollowUpForm contactId={contact.id} />
+          {project && !hasClientAccount ? (
+            <InviteClientButton clientId={project.clientId} defaultName={contact.name} defaultEmail={contact.email} />
+          ) : null}
         </div>
       </Card>
 
