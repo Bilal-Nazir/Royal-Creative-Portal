@@ -31,6 +31,7 @@ export function NewProjectForm({ assignees, clients }: NewProjectFormProps) {
     const assigneeId = String(formData.get("assigneeId") ?? "").trim();
     const clientId = String(formData.get("clientId") ?? "").trim();
     const projectType = String(formData.get("projectType") ?? "").trim();
+    const startFrom = String(formData.get("startFrom") ?? "brief").trim();
 
     if (!name || !dueDate || !assigneeId || !clientId || !projectType) {
       setError("Fill in the project name, type, client, due date and assignee.");
@@ -43,7 +44,7 @@ export function NewProjectForm({ assignees, clients }: NewProjectFormProps) {
       const response = await fetch("/api/agency/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, projectType, dueDate, assigneeId, clientId }),
+        body: JSON.stringify({ name, description, projectType, dueDate, assigneeId, clientId, startFrom }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) {
@@ -88,6 +89,17 @@ export function NewProjectForm({ assignees, clients }: NewProjectFormProps) {
           name="projectType"
           placeholder="Select a project type"
           options={PROJECT_TYPES.map((type) => ({ value: type, label: type }))}
+        />
+
+        <Select
+          label="Start from"
+          id="startFrom"
+          name="startFrom"
+          defaultValue="brief"
+          options={[
+            { value: "brief", label: "Brief" },
+            { value: "proposal", label: "Proposal (skip the brief)" },
+          ]}
         />
 
         <Textarea

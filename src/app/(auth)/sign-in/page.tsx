@@ -53,7 +53,7 @@ function SignInForm() {
       <header className="flex items-center justify-between">
         <Logo width={180} />
         <Button href={returnTo ?? "/dashboard"} variant="secondary" className="w-auto px-6">
-          Back to brief
+          {isBriefVariant ? "Back" : "Back to dashboard"}
         </Button>
       </header>
 
@@ -65,7 +65,7 @@ function SignInForm() {
             </h1>
             <p className="text-sm text-ink-secondary">
               {isBriefVariant
-                ? "Sign in to approve the brief, leave a comment or request changes."
+                ? "Sign in to continue, leave a comment or request changes."
                 : "Access your projects and see what needs your attention."}
             </p>
           </div>

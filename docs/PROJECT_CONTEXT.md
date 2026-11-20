@@ -100,6 +100,15 @@ the next read reseeds it).
 
 - **Progress** = `completedStageCount(stage) / 8` — current stage doesn't
   count as complete (Design = 4/8 = 50%).
+- **`BriefStatus` has a `"skipped"` value** (Phase 4) — a project can start
+  at Proposal instead of Brief. Only the brief can be skipped, and only
+  before it's been sent or approved (`draft`, or no brief yet). `skipBrief`
+  (`brief-service.ts`, owner/admin only) records `skippedByUserId`/
+  `skippedByName`/`skippedAt` and moves the project straight to `proposal`.
+  `computeGateState`'s `briefApproved` treats `"skipped"` exactly like
+  `"approved"`, so it satisfies the `brief → proposal` gate and — since
+  progress is purely `stageIndex(stage) / 8` — counts as a completed stage
+  with no separate progress-calculation change needed.
 - **`deposit → content`** gates on `invoice.status === "paid"` only. A
   client-reported ("unverified") bank transfer does not satisfy it until an
   admin calls `verifyInvoicePayment`.
@@ -227,6 +236,15 @@ needs `next dev`, `playwright.config.ts`'s e2e suite also runs against
   client directory (`CLIENT_DIRECTORY` → `getClientDirectory()`) moved from
   hardcoded/static to real file-store-backed data. See DESIGN_NOTES for the
   full list.
+- **Phase 4** — flow change: a project can start at Proposal, skipping the
+  Brief entirely. A04 gained a "Start from" choice (Brief/Proposal); A16
+  gained an owner/admin-only "Skip brief" action (confirm dialog, draft-only
+  brief); both journey sidebars render a skipped brief as "– Brief ·
+  Skipped" (muted, not a link); A06 hides the "approved brief" baseline copy
+  when skipped; the guest share link (`/b/[token]`) now shows the proposal
+  instead of the brief once the project is past the brief stage, with its
+  own read-only Accept/Request changes → sign-in → back-to-proposal round
+  trip. See DESIGN_NOTES for the full list.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 

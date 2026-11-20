@@ -6,7 +6,7 @@ import { STAGE_ORDER, STAGE_LABELS } from "@/server/domain/stage";
 
 const ROYAL_TRENDSY_PROJECT_ID = "proj-royal-trendsy";
 
-const BRIEF_STATUSES = ["draft", "sent", "changes_requested", "approved"] as const;
+const BRIEF_STATUSES = ["draft", "sent", "changes_requested", "approved", "skipped"] as const;
 const PROPOSAL_STATUSES = ["draft", "sent", "changes_requested", "accepted"] as const;
 const INVOICE_STATUSES = ["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"] as const;
 const CONTENT_SCENARIOS = ["baseline", "images_submitted", "images_changes_requested"] as const;

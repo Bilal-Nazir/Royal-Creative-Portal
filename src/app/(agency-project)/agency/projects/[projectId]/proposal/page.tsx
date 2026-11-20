@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
 import { getProposalForProject } from "@/server/services/proposal-service";
+import { getBriefForProject } from "@/server/services/brief-service";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
@@ -18,8 +19,9 @@ export default async function ProposalEditorPage({ params }: { params: Promise<{
   const project = await projectRepository.findById(projectId);
   if (!project) redirect("/agency/projects");
 
-  const proposal = await getProposalForProject(projectId);
+  const [proposal, brief] = await Promise.all([getProposalForProject(projectId), getBriefForProject(projectId)]);
   const fields = proposal?.fields ?? { scope: "", timeline: "", revisions: "", exclusions: "" };
+  const briefSkipped = brief?.status === "skipped";
 
   return (
     <>
@@ -32,7 +34,7 @@ export default async function ProposalEditorPage({ params }: { params: Promise<{
       <PageHeader
         eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Prepare your proposal"
-        description="Use the approved brief as the scope baseline."
+        description={briefSkipped ? undefined : "Use the approved brief as the scope baseline."}
       />
       {proposal ? <Badge>{proposal.status.replace("_", " ")} · Version {proposal.versionNumber}</Badge> : <Badge>New proposal</Badge>}
 

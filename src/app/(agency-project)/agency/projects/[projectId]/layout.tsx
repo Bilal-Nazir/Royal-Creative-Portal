@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
 import { filterProjectsForAgencyUser } from "@/server/services/permissions";
+import { getBriefForProject } from "@/server/services/brief-service";
 import { AgencyShell } from "@/components/layout/AgencyShell";
 
 export default async function AgencyProjectLayout({
@@ -24,8 +25,10 @@ export default async function AgencyProjectLayout({
     redirect("/agency/projects");
   }
 
+  const brief = await getBriefForProject(project.id);
+
   return (
-    <AgencyShell journeyStage={project.stage} journeyProjectId={project.id}>
+    <AgencyShell journeyStage={project.stage} journeyProjectId={project.id} journeyBriefSkipped={brief?.status === "skipped"}>
       {children}
     </AgencyShell>
   );

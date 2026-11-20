@@ -814,3 +814,105 @@ invoice unpaid" needs more than a stage flip. All follow the existing
   tests are still `mode: "serial"`, but cross-file isolation during a
   concurrent run is not guaranteed — flagged here rather than silently
   assumed safe.
+
+# Design notes — Phase 4 (start projects at proposal, skip the brief)
+
+## Domain: `BriefStatus` gains `"skipped"`
+
+A brief can only be skipped while it's still a `draft` (or doesn't exist
+yet) — never once it's `sent`, `changes_requested`, or `approved`. Reused
+the existing `approvedBy*`-style fields pattern: `skippedByUserId`/
+`skippedByName`/`skippedAt` on `BriefVersion`. `computeGateState`'s
+`briefApproved` (`stage-service.ts`) treats `"skipped"` exactly like
+`"approved"` — it's the only change needed for a skipped brief to satisfy
+the `brief → proposal` gate. Progress didn't need any change at all:
+`completedStageCount`/`progressFraction` are purely `stageIndex(stage) / 8`
+and only look at which stage the project is *currently* on, not how the
+brief got approved.
+
+## A16 — "Skip brief" is a new, stricter permission check
+
+Owner/admin only — deliberately **not** `assertAgencyCanManageProject`,
+which also lets an assigned member through for every other agency action
+in this app. `skipBrief` (`brief-service.ts`) inlines the role check
+instead, same pattern as A20's owner-only role changes in
+`settings-service.ts`. Shown on A16 only while
+`project.stage === "brief"` and the brief is missing or still `draft`; the
+confirm step is a native `window.confirm()` rather than a new dialog
+component — no confirm-dialog UI existed anywhere else in the app (A07's
+status override and A09's force-advance are both one-click, no
+confirmation), and building one for a single call site felt like the wrong
+layer to add it at.
+
+## A04 — "Start from: Brief / Proposal" (not in Figma, like its client selector)
+
+A `Select` styled identically to the other A04 fields, defaulting to
+"Brief" (today's only behaviour). Choosing "Proposal" calls `createProject`
+with `startFrom: "proposal"`, which seeds a `BriefVersion` with
+`status: "skipped"` and an empty draft `ProposalVersion` (`status:
+"draft"`, blank fields, fee 0, no payment schedule rows) in the same write,
+and sets the project's `stage` straight to `"proposal"` — no call through
+`skipBrief`/`tryAdvanceStageIfGated` needed since there's nothing to gate
+yet. A16's own "Skip brief" action, by contrast, does *not* create an empty
+proposal draft — A06 already renders a blank editor correctly when
+`getProposalForProject` returns `null`, so there was nothing to add there.
+
+## Journey sidebars — `ProjectJourney` gained a `briefSkipped` prop
+
+Both `ClientShell` and `AgencyShell` now fetch the project's brief in their
+layouts and pass `journeyBriefSkipped` down. When true, the brief's `<li>`
+renders as plain muted text "– Brief · Skipped" and returns early — before
+the done/current/upcoming glyph logic and before `AgencyShell`'s
+`linkableStages` (which otherwise links brief/proposal/deposit
+unconditionally on the agency side, per A16's existing Figma deviation).
+A skipped brief is never a link on either shell, by design.
+
+## A06 — baseline copy hidden, not replaced
+
+"Use the approved brief as the scope baseline." is omitted entirely
+(`PageHeader`'s `description` is already optional) rather than swapped for
+alternate copy — there's no brief-skipped-specific guidance in the brief
+for this screen, and an empty `PageHeader` description is a normal,
+already-supported state. "Copy client link"/"Preview client view" were
+already present on A06 from Phase 2a-design — nothing to add there.
+
+## Guest link now branches on project stage, not just "brief"
+
+`getGuestBriefView` (brief-only) became `getGuestProjectView`, returning a
+`{ kind: "brief" | "proposal", ... }` union. `/b/[token]` renders whichever
+the project's current stage implies: `"brief"` while the project is still
+at the `brief` stage, the proposal once it's moved past — covering both the
+normal flow (brief approved) and the skip flow identically, off the same
+share-link token. This also fixes a latent bug the skip flow would
+otherwise have hit: without this change, a guest link to a skipped-brief
+project would have rendered the skipped version's blank fields as if it
+were a real brief to review.
+
+The guest proposal view is read-only (`ProposalDocument` has no editable
+fields) with "Accept proposal"/"Request changes" buttons that both route
+through `/sign-in?variant=brief&returnTo=<the proposal page>` — mirroring
+the existing guest-brief round trip exactly, back to the proposal page
+itself rather than straight to the accept/changes sub-routes, so the
+signed-in client lands somewhere they can still change their mind. The
+sign-in page's `variant=brief` copy ("Sign in to continue, leave a comment
+or request changes" / "Back") was reworded slightly to stay accurate for
+both the brief and proposal guest flows sharing it, rather than adding a
+second variant for one word's difference.
+
+## Client dashboard — the "Your projects" row no longer hardcodes `/brief`
+
+Every project card linked straight to `/projects/{id}/brief` regardless of
+stage. Changed to `/projects/{id}/${project.stage}` — the stage name is
+already the exact route segment for every stage (see `STAGE_ROUTES` in
+`ProjectJourney.tsx`), so this is a one-line fix, not a new mapping. This
+was a real latent bug independent of the skip flow (any project already
+past the brief stage would link into a brief page that redirects away), but
+the skip flow is what surfaces it immediately for a brand-new project.
+
+## Client/agency brief pages redirect away from a skipped brief
+
+Both brief review pages (`(client-project).../brief/page.tsx` and
+`(agency-project).../brief/page.tsx`) now redirect to the proposal page
+when the current brief's `status === "skipped"` — there's nothing to review
+or edit, and without this a direct URL visit (bypassing the now-unlinked
+journey sidebar) would render a confusing blank-brief editor/review screen.

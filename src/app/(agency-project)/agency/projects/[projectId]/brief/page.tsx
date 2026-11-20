@@ -19,6 +19,7 @@ export default async function BriefEditorPage({ params }: { params: Promise<{ pr
   if (!project) redirect("/agency/projects");
 
   const brief = await getBriefForProject(projectId);
+  if (brief?.status === "skipped") redirect(`/agency/projects/${projectId}/proposal`);
   const fields = brief?.fields ?? { objective: "", audience: "", pages: "", features: "", deliverables: "" };
 
   return (

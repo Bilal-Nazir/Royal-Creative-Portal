@@ -24,7 +24,10 @@ export async function computeGateState(project: Project): Promise<ProjectGateSta
   ]);
 
   return {
-    briefApproved: brief?.status === "approved",
+    // Decision: a skipped brief (A04 "Start from: Proposal", or A16's "Skip
+    // brief") satisfies this gate exactly like an approved one — there's
+    // nothing left to review.
+    briefApproved: brief?.status === "approved" || brief?.status === "skipped",
     proposalAccepted: proposal?.status === "accepted",
     depositConfirmed: invoice ? isInvoiceConfirmed(invoice) : false,
     requiredContentAccepted: requiredItemsAllAccepted(contentItems),

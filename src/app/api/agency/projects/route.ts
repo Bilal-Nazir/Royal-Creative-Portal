@@ -11,6 +11,7 @@ const bodySchema = z.object({
   clientId: z.string().min(1),
   assigneeId: z.string().min(1),
   dueDate: z.string().min(1),
+  startFrom: z.enum(["brief", "proposal"]).optional(),
 });
 
 export async function POST(request: Request) {

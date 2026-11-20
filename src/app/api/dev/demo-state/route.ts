@@ -6,7 +6,7 @@ import { STAGE_ORDER } from "@/server/domain/stage";
 const bodySchema = z.object({
   projectId: z.string(),
   stage: z.enum(STAGE_ORDER).optional(),
-  briefStatus: z.enum(["draft", "sent", "changes_requested", "approved"]).optional(),
+  briefStatus: z.enum(["draft", "sent", "changes_requested", "approved", "skipped"]).optional(),
   proposalStatus: z.enum(["draft", "sent", "changes_requested", "accepted"]).optional(),
   invoiceStatus: z.enum(["scheduled", "unpaid", "promised", "unverified", "partially_paid", "paid", "overdue"]).optional(),
   contentScenario: z.enum(["baseline", "images_submitted", "images_changes_requested"]).optional(),

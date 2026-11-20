@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
+import { getBriefForProject } from "@/server/services/brief-service";
 import { ClientShell } from "@/components/layout/ClientShell";
 
 export default async function ProjectLayout({
@@ -22,8 +23,10 @@ export default async function ProjectLayout({
     redirect("/dashboard");
   }
 
+  const brief = await getBriefForProject(project.id);
+
   return (
-    <ClientShell journeyStage={project.stage} journeyProjectId={project.id}>
+    <ClientShell journeyStage={project.stage} journeyProjectId={project.id} journeyBriefSkipped={brief?.status === "skipped"}>
       {children}
     </ClientShell>
   );

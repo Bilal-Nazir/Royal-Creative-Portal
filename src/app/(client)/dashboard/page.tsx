@@ -68,7 +68,7 @@ export default async function ClientDashboardPage() {
               title={project.name}
               subtitle={`${STAGE_LABELS[project.stage]} stage · Project lead: ${project.contactName}`}
               trailing={<Badge>{project.clientStatusLabel}</Badge>}
-              href={`/projects/${project.id}/brief`}
+              href={`/projects/${project.id}/${project.stage}`}
             />
             <ListRow
               title="Next milestone"

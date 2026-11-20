@@ -1,4 +1,4 @@
-export type BriefStatus = "draft" | "sent" | "changes_requested" | "approved";
+export type BriefStatus = "draft" | "sent" | "changes_requested" | "approved" | "skipped";
 
 export interface BriefFields {
   objective: string;
@@ -24,4 +24,8 @@ export interface BriefVersion {
   revisionRequestedText?: string;
   revisionRequestedAttachmentUrl?: string;
   revisionRequestedAt?: string;
+  /** Set when status moves to "skipped" (A04 "Start from: Proposal", or A16's "Skip brief"). */
+  skippedByUserId?: string;
+  skippedByName?: string;
+  skippedAt?: string;
 }

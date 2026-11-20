@@ -1,9 +1,11 @@
-import { projectRepository, activityRepository, attentionRepository, userRepository } from "../repositories/container";
+import { projectRepository, activityRepository, attentionRepository, userRepository, briefRepository, proposalRepository } from "../repositories/container";
 import type { SessionPayload } from "../auth/session";
 import { filterProjectsForAgencyUser } from "./permissions";
 import { forbidden, ok, type ServiceResult } from "./result";
 import { isAgencyUser, isClientUser, type ClientUser } from "../domain/user";
 import type { Project, ProjectType } from "../domain/project";
+import type { BriefVersion } from "../domain/brief";
+import type { ProposalVersion } from "../domain/proposal";
 import { SEED_USERS } from "../repositories/in-memory/seed-data";
 
 export async function getClientDashboardData(clientId: string) {
@@ -59,6 +61,8 @@ export async function getClientDirectory(): Promise<ClientDirectoryEntry[]> {
   }));
 }
 
+export type ProjectStartFrom = "brief" | "proposal";
+
 export interface CreateProjectInput {
   name: string;
   description: string;
@@ -66,6 +70,8 @@ export interface CreateProjectInput {
   clientId: string;
   assigneeId: string;
   dueDate: string;
+  /** A04's "Start from" choice — not in Figma, see DESIGN_NOTES. Defaults to "brief" (the existing behaviour). */
+  startFrom?: ProjectStartFrom;
 }
 
 export async function createProject(
@@ -81,8 +87,11 @@ export async function createProject(
   const assignee = await userRepository.findById(input.assigneeId);
   if (!assignee || !isAgencyUser(assignee)) return forbidden("Unknown assignee.");
 
+  const startFrom = input.startFrom ?? "brief";
+  const projectId = `proj-${input.clientId}-${Date.now().toString(36)}`;
+
   const project: Project = {
-    id: `proj-${input.clientId}-${Date.now().toString(36)}`,
+    id: projectId,
     name: input.name,
     description: input.description,
     projectType: input.projectType,
@@ -90,18 +99,54 @@ export async function createProject(
     clientId: input.clientId,
     clientName: client.clientName,
     contactName: session.name,
-    stage: "brief",
-    statusLabel: "Brief in progress",
+    stage: startFrom === "proposal" ? "proposal" : "brief",
+    statusLabel: startFrom === "proposal" ? "Proposal in progress" : "Brief in progress",
     clientStatusLabel: "In progress",
     waitingOn: "agency",
     assigneeId: assignee.id,
     assigneeName: assignee.name,
     dueDate: input.dueDate,
     openRevisions: 0,
-    nextMilestone: { label: "Brief review", date: input.dueDate, waitingOn: "agency" },
+    nextMilestone: {
+      label: startFrom === "proposal" ? "Proposal review" : "Brief review",
+      date: input.dueDate,
+      waitingOn: "agency",
+    },
     launchChecklist: { clientApproval: false, finalPayment: false, domainHosting: false, qualityChecks: false },
     forcedAdvances: [],
   };
   await projectRepository.create(project);
+
+  if (startFrom === "proposal") {
+    const now = new Date().toISOString();
+    const skippedBrief: BriefVersion = {
+      id: `brief-${projectId}-v1`,
+      projectId,
+      versionNumber: 1,
+      fields: { objective: "", audience: "", pages: "", features: "", deliverables: "" },
+      status: "skipped",
+      createdByName: session.name,
+      createdAt: now,
+      skippedByUserId: session.userId,
+      skippedByName: session.name,
+      skippedAt: now,
+    };
+    await briefRepository.create(skippedBrief);
+
+    const draftProposal: ProposalVersion = {
+      id: `proposal-${projectId}-v1`,
+      projectId,
+      versionNumber: 1,
+      fields: { scope: "", timeline: "", revisions: "", exclusions: "" },
+      fee: 0,
+      paymentSchedule: [],
+      includedRevisionRounds: 2,
+      status: "draft",
+      createdByName: session.name,
+      createdAt: now,
+    };
+    await proposalRepository.create(draftProposal);
+  }
+
   return ok(project);
 }

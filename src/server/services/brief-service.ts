@@ -1,10 +1,11 @@
 import { briefRepository, commentRepository, projectRepository } from "../repositories/container";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
-import { ok, notFound, type ServiceResult } from "./result";
+import { ok, notFound, forbidden, badRequest, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";
 import type { SessionPayload } from "../auth/session";
 import type { BriefVersion, BriefFields } from "../domain/brief";
 import type { Comment } from "../domain/comment";
+import type { Project } from "../domain/project";
 
 export async function getBriefForProject(projectId: string): Promise<BriefVersion | null> {
   return briefRepository.getCurrentVersion(projectId);
@@ -180,4 +181,58 @@ export async function postBriefComment(
   };
   await commentRepository.create(comment);
   return ok(comment);
+}
+
+/**
+ * A16's "Skip brief" action — owner/admin only (stricter than
+ * assertAgencyCanManageProject, which also lets an assigned member through),
+ * and only while the brief is still a draft (or hasn't been created yet):
+ * once it's been sent, changes_requested, or approved, it can no longer be
+ * skipped. Moves the project straight to "proposal" — the same place
+ * approveBrief's tryAdvanceStageIfGated would land it.
+ */
+export async function skipBrief(session: SessionPayload, projectId: string): Promise<ServiceResult<BriefVersion>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+  if (session.role !== "agency") return forbidden("Only agency staff can do that.");
+  if (session.agencyRole !== "owner" && session.agencyRole !== "admin") {
+    return forbidden("Only an owner or admin can skip the brief.");
+  }
+  if (project.stage !== "brief") {
+    return badRequest(`Can only skip the brief from the "brief" stage — project is currently at "${project.stage}".`);
+  }
+
+  const current = await briefRepository.getCurrentVersion(projectId);
+  if (current && current.status !== "draft") {
+    return badRequest(`Can't skip a brief that's already "${current.status}".`);
+  }
+
+  const now = new Date().toISOString();
+  const skipped: BriefVersion = current
+    ? { ...current, status: "skipped", skippedByUserId: session.userId, skippedByName: session.name, skippedAt: now }
+    : {
+        id: `brief-${projectId}-v1`,
+        projectId,
+        versionNumber: 1,
+        fields: { objective: "", audience: "", pages: "", features: "", deliverables: "" },
+        status: "skipped",
+        createdByName: session.name,
+        createdAt: now,
+        skippedByUserId: session.userId,
+        skippedByName: session.name,
+        skippedAt: now,
+      };
+  if (current) await briefRepository.update(skipped);
+  else await briefRepository.create(skipped);
+
+  const updated: Project = {
+    ...project,
+    stage: "proposal",
+    statusLabel: "Proposal in progress",
+    clientStatusLabel: "In progress",
+    nextMilestone: { label: "Proposal review", date: project.dueDate, waitingOn: "agency" },
+  };
+  await projectRepository.update(updated);
+
+  return ok(skipped);
 }

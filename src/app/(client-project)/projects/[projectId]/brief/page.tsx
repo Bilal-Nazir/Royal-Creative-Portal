@@ -26,6 +26,7 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
 
   const brief = await getBriefForProject(projectId);
   if (!brief) redirect("/dashboard");
+  if (brief.status === "skipped") redirect(`/projects/${projectId}/proposal`);
 
   const comments = await getBriefComments(projectId, brief.id);
   const userCanAct = canAct(session);

@@ -26,9 +26,11 @@ export interface AgencyShellProps {
   /** Shown as a "PROJECT JOURNEY" section in the sidebar when viewing a specific project (A16 and its stage pages). */
   journeyStage?: Stage;
   journeyProjectId?: string;
+  /** When true, the journey sidebar shows the brief as "– Brief · Skipped" instead of a normal (always-linkable) stage entry. */
+  journeyBriefSkipped?: boolean;
 }
 
-export function AgencyShell({ children, journeyStage, journeyProjectId }: AgencyShellProps) {
+export function AgencyShell({ children, journeyStage, journeyProjectId, journeyBriefSkipped }: AgencyShellProps) {
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <MobileNav
@@ -53,6 +55,7 @@ export function AgencyShell({ children, journeyStage, journeyProjectId }: Agency
               projectId={journeyProjectId}
               basePath="/agency/projects"
               linkableStages={AGENCY_LINKABLE_STAGES}
+              briefSkipped={journeyBriefSkipped}
             />
           </>
         ) : null}

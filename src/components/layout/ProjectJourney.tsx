@@ -16,6 +16,8 @@ export interface ProjectJourneyProps {
    * convention (omit this prop) only links done+current stages instead.
    */
   linkableStages?: Stage[];
+  /** When true, the brief stage renders as "– Brief · Skipped" — muted, not a link — regardless of done/current/upcoming status. */
+  briefSkipped?: boolean;
 }
 
 const STAGE_ROUTES: Partial<Record<Stage, string>> = {
@@ -35,12 +37,27 @@ const STAGE_ROUTES: Partial<Record<Stage, string>> = {
  * visual timeline with icons, as Phase 1 originally guessed before any screen
  * actually used this component).
  */
-export function ProjectJourney({ currentStage, className, projectId, basePath = "/projects", linkableStages }: ProjectJourneyProps) {
+export function ProjectJourney({
+  currentStage,
+  className,
+  projectId,
+  basePath = "/projects",
+  linkableStages,
+  briefSkipped,
+}: ProjectJourneyProps) {
   const currentIndex = stageIndex(currentStage);
 
   return (
     <ol className={cn("flex flex-col gap-[14px]", className)}>
       {STAGE_ORDER.map((stage, index) => {
+        if (stage === "brief" && briefSkipped) {
+          return (
+            <li key={stage}>
+              <span className="text-[13px] font-medium text-ink-secondary">– Brief · Skipped</span>
+            </li>
+          );
+        }
+
         const status = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
         const glyph = status === "done" ? "✓" : status === "current" ? "●" : "○";
         const textClass = status === "current" ? "rc-brand-gradient-text" : "text-ink-secondary";

@@ -19,10 +19,12 @@ export interface ClientShellProps {
   /** Shown as a "PROJECT JOURNEY" section in the sidebar when viewing a specific project (brief/proposal/deposit pages). */
   journeyStage?: Stage;
   journeyProjectId?: string;
+  /** When true, the journey sidebar shows the brief as "– Brief · Skipped" instead of a normal stage entry. */
+  journeyBriefSkipped?: boolean;
 }
 
 /** A20's owner contact fields drive this sidebar's "Contact owner" icons (Phase 3) — falls back to ContactOwner's own defaults if unset. */
-export async function ClientShell({ children, journeyStage, journeyProjectId }: ClientShellProps) {
+export async function ClientShell({ children, journeyStage, journeyProjectId, journeyBriefSkipped }: ClientShellProps) {
   const settings = await getAgencySettings();
   const phoneHref = settings.ownerPhone ? `tel:${settings.ownerPhone.replace(/\s+/g, "")}` : undefined;
   const whatsappHref = settings.ownerWhatsapp ? `https://wa.me/${settings.ownerWhatsapp.replace(/[^\d]/g, "")}` : undefined;
@@ -46,7 +48,7 @@ export async function ClientShell({ children, journeyStage, journeyProjectId }: 
         {journeyStage ? (
           <>
             <p className="text-xs text-ink-secondary">PROJECT JOURNEY</p>
-            <ProjectJourney currentStage={journeyStage} projectId={journeyProjectId} />
+            <ProjectJourney currentStage={journeyStage} projectId={journeyProjectId} briefSkipped={journeyBriefSkipped} />
           </>
         ) : null}
         <p className="text-xs leading-relaxed text-ink-secondary">
