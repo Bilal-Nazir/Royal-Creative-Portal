@@ -5,7 +5,7 @@ import { payFinalInvoice, markFinalInvoicePaidManually, getFinalInvoice, setInvo
 import { createScopeChange, acceptScopeChange, declineScopeChange } from "./scope-change-service";
 import { computeGateState, activateScheduledInvoices } from "./stage-service";
 import { projectRepository, proposalRepository, invoiceRepository, notificationRepository } from "../repositories/container";
-import { resetStore } from "../storage/file-store";
+import { resetStore } from "../repositories/in-memory/memory-store";
 import type { SessionPayload } from "../auth/session";
 import type { Project } from "../domain/project";
 

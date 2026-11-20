@@ -4,7 +4,20 @@ Royal Creative client/agency portal. Figma file `q59B9tWGSDdfXZXSSNDazB`.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-based tokens, no config file) · Zod · jose (session JWT) · lucide-react (icons Figma doesn't have) · Vitest · Playwright. No other UI libraries. npm.
+Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-based tokens, no config file) · Zod · lucide-react (icons Figma doesn't have) · Vitest · Playwright. MongoDB via Mongoose (real persistence, Phase 4a) · Redis via ioredis (sessions, rate limiting, cache) · argon2 (real password hashing). No other UI libraries. npm.
+
+## Local setup (Phase 4a)
+
+- Copy `.env.example` to `.env.local` and fill in `AUTH_SECRET` (any long random string), `MONGODB_URI`, `REDIS_URL`. Validated with Zod at startup (`server/env.ts`, invoked from `instrumentation.ts`) — a missing/malformed var fails immediately with a clear message, not a confusing error three layers down.
+- `REPOSITORY_DRIVER=mongo` (the real app) or `memory` (unit tests — set in `vitest.config.ts`, not `.env.local`). `server/repositories/container.ts` is the only place that branches on it.
+- **MongoDB must be a replica set** — even a single-node one — because transactions (`server/db/mongoose.ts`'s `withTransaction`, used for proposal acceptance, scope-change acceptance, and stage transitions) need an oplog to commit against. A standalone `mongod` throws a clear error pointing here instead of Mongo's much less actionable one. To convert a local standalone instance:
+  1. Stop `mongod`.
+  2. Add `replication: { replSetName: "rs0" }` to its config file (or start it with `mongod --replSet rs0` directly).
+  3. Start `mongod` again.
+  4. `mongosh --eval "rs.initiate()"` — one-time, only needed once per data directory.
+  5. `mongosh --eval "rs.status()"` should now show `"stateStr": "PRIMARY"`.
+- Tests never touch dev data: `vitest.config.ts` points `MONGODB_URI` at `rc_portal_test` and `REDIS_URL` at Redis DB index 1 (dev uses DB 0), and sets `REPOSITORY_DRIVER=memory` so most tests don't touch Mongo at all. `server/repositories/mongo/mongo-repositories.test.ts` is the exception — it talks to the real `rc_portal_test` database directly and skips itself (not a failure) if Mongo isn't reachable.
+- `npm run db:seed` (`scripts/seed-mongo.ts`, run via `tsx`) wipes every collection in `MONGODB_URI` and reseeds the same demo data as the memory driver, asking for a typed "yes" confirmation first. Passwords are re-hashed with argon2 at seed time (`password123` for every seeded login, same as before).
 
 ## Folder structure
 
@@ -30,6 +43,8 @@ src/
                                ServiceResult to an HTTP status. No business logic here.
     api/files/                 upload (multipart) + [fileId] (authorized download, never public)
     b/[token]                  public guest brief preview, no auth
+    (auth)/invite/[token]      accept a team/client invite, set a password (Phase 4a, not in Figma)
+    (auth)/forgot-password     (auth)/reset-password/[token]  real password reset (Phase 4a, not in Figma)
   components/
     ui/                        Button, Field, Select, Badge, Card, ListRow, ProgressBar,
                                AssigneeChip, etc.
@@ -52,11 +67,15 @@ src/
                                scope-change.ts, handover-resource.ts, message.ts
                                [+ConversationRead], notification.ts, upload.ts, contact.ts,
                                settings.ts...)
-    repositories/               interfaces.ts + in-memory/ impls + container.ts (DI point)
+    repositories/               interfaces.ts + in-memory/ impls + mongo/ impls + container.ts
+                               (DI point — branches on REPOSITORY_DRIVER)
+    db/                        mongoose.ts (cached connection, withTransaction, replica-set
+                               check), models.ts (every Mongoose schema), redis.ts (cached client)
     services/                  business rules + permission checks; return ServiceResult<T>
-    auth/                       session (jose), password hashing, cookies, share tokens
+    auth/                       session.ts (Redis-backed opaque sessions), password.ts
+                               (argon2 + legacy scrypt dual-verify), rate-limit.ts, cookies.ts
+    email/                      EmailProvider interface + dev console provider (real email is 4b)
     payments/                   PaymentProvider interface + MockPaymentProvider
-    storage/file-store.ts       see "Data store" below
     storage/storage-provider.ts StorageProvider interface + local-disk impl (.data/uploads/)
     storage/upload-validation.ts per-scope MIME/size validation + filename sanitization
 ```
@@ -65,33 +84,43 @@ Routes are split into `(client)` vs `(client-project)` route groups because the
 project-scoped pages need a different sidebar (with the stage list) — see
 `(client-project)/projects/[projectId]/layout.tsx`.
 
-## Data store
+## Data store (Phase 4a — real persistence)
 
-Two tiers:
-- **Pure in-memory arrays** (`server/repositories/in-memory/seed-data*.ts`) for
-  data nothing ever mutates: users, activity feed, attention tasks, agency
-  overview stats, content checklist, share links.
-- **File-backed JSON** (`.data/phase2a-store.json`, gitignored, auto-seeded on
-  first read, written atomically via a temp-file-then-rename) for every
-  entity that gets mutated by one Next.js "layer" (a route handler) and read
-  by another (a page Server Component): Project, BriefVersion,
-  ProposalVersion, Invoice, Comment, AcceptanceRecord, ShareLink,
-  ContentChecklistItem, ContentSubmission, DesignVersion (kind: design or
-  development — one track, not two parallel collections), DesignPinComment,
-  RevisionRound (also kind-discriminated), ProjectMessage, Notification,
-  UploadedFile (metadata only — bytes live in `.data/uploads/`, see
-  `storage/storage-provider.ts`), ScopeChange, HandoverResource.
+MongoDB via Mongoose is now the real app's persistence (`REPOSITORY_DRIVER=mongo`).
+Every domain entity has a Mongoose model (`server/db/models.ts`) and a matching
+Mongo repository class (`server/repositories/mongo/mongo-repositories.ts`)
+implementing the same interfaces the file store used to. Convention: the
+domain's own `id` field is the document's `_id` (a plain String, not an
+ObjectId) — ShareLink and AgencySettings are the two exceptions, since those
+domain types have no `id` field at all. Every date-ish field
+(`createdAt`, `approvedAt`, ...) is stored as a plain String, matching the
+domain type exactly — Mongoose's own `timestamps` option is still enabled,
+but under custom field names (`_createdAt`/`_updatedAt`) specifically so it
+can't collide with (and silently corrupt) those existing string fields.
 
-**Why the file.** Next.js compiles Route Handlers and page Server Components
-into separate module/VM contexts that do not share state — not even via
-`globalThis`. A POST handler's mutation would be invisible on the very next
-page load without persisting outside the JS module graph. Confirmed in both
-`next dev` and the production `next start` build. A real database later
-replaces just this file — `server/repositories/container.ts` is the only
-place that imports concrete repository classes.
+Indexes: unique `User.email`, unique `ShareLink.token`, unique
+`Invoice.invoiceNumber`, unique `Invite.tokenHash` /
+`PasswordResetToken.tokenHash`, plus non-unique indexes on the common
+lookups (`projectId`, `clientId`, `status`, `assigneeId`, ...). See
+DESIGN_NOTES for why there's no `(proposalVersionId, invoiceKind)` unique
+index — invoice ids are already deterministic (`inv-{projectId}-{type}`),
+so Mongo's default unique `_id` index already provides the same guarantee.
 
-To reset to seed state: `npm run seed:reset` (deletes `.data/phase2a-store.json`;
-the next read reseeds it).
+**REPOSITORY_DRIVER=memory** (unit tests only) uses plain in-process arrays
+(`server/repositories/in-memory/memory-store.ts`, seeded from the same
+`seed-data*.ts` fixtures) — no file, no database. The old JSON-file store
+existed only because Next.js Route Handlers and page Server Components ran
+in separate module/VM contexts that didn't share `globalThis`; Mongo is now
+that real shared persistence for the app, and a single-process vitest run
+never had that problem to begin with.
+
+Transactions (`server/db/mongoose.ts`'s `withTransaction`) wrap proposal
+acceptance (proposal + acceptance record + invoices + stage advance), scope
+change acceptance (invoice + scope change + notification), and stage
+transitions generally (project update + any invoice activation + the
+notification it sends) — see DESIGN_NOTES for how the repository
+interfaces thread an optional Mongo `ClientSession` through just those call
+paths without changing every method signature.
 
 ## Stage machine & business-rule decisions
 
@@ -155,9 +184,42 @@ Every mutating service call checks permissions itself (`assertClientCanActOnProj
 Client viewers and agency members on projects they're not assigned to are
 denied on every action, tested directly in `project-actions.test.ts`.
 
+## Auth (Phase 4a)
+
+- **Sessions**: opaque random id in an httpOnly, `Secure`-in-production,
+  `SameSite=Lax` cookie (`rc_session`) — the session data itself lives in
+  Redis under that id, with an 8-hour TTL refreshed (sliding expiry) on
+  every verify. Logout deletes the Redis key; a password or role change
+  calls `sessionService.revokeAllForUser()`, which deletes every session a
+  user currently holds, everywhere they're signed in.
+- **Rate limiting**: 5 attempts per 15 minutes, keyed by
+  `action:email:ip` (Redis `INCR`+`EXPIRE`) — sign-in, forgot-password, and
+  invite/reset-accept. Disabled when `ALLOW_DEMO_STATE=true` (Playwright's
+  env) since the e2e suite signs in dozens of times against the same
+  seeded accounts.
+- **Invites**: `server/services/invite-service.ts` — an agency owner/admin
+  invites a team member (A20 Settings) or a client (from a project/contact);
+  the token is sha256-hashed before storage, 72-hour expiry, one-time use.
+  `/invite/[token]` sets a password, then the user signs in normally.
+- **Password reset**: `server/services/password-reset-service.ts` — same
+  hashed-token shape, 1-hour expiry, one-time use. `requestPasswordReset`
+  always returns ok and only sends an email when the address exists — never
+  reveals which case it was.
+- **Email**: `server/email/email-provider.ts`'s `EmailProvider` interface,
+  with a dev provider that logs the message + link to the console. Real
+  email is Phase 4b.
+- **CSRF**: `src/proxy.ts` checks the `Origin` header matches the app's own
+  origin on every mutating (`POST`/`PUT`/`PATCH`/`DELETE`) request to
+  `/api/*`, before the route handler runs. `/api/dev/demo-state` is
+  exempt — it's already a documented test-only fixture control with no
+  session check at all, and Playwright calls it directly via
+  `request.post()`, which doesn't carry a browser `Origin` header.
+
 ## Seeded logins
 
-Password `password123` for everyone.
+Password `password123` for everyone, re-hashed with argon2 by `npm run db:seed`
+(the baked-in hash in `seed-data.ts` is scrypt, kept only for the
+`REPOSITORY_DRIVER=memory` test path — see DESIGN_NOTES).
 
 | Email | Role |
 |---|---|
@@ -245,6 +307,16 @@ needs `next dev`, `playwright.config.ts`'s e2e suite also runs against
   instead of the brief once the project is past the brief stage, with its
   own read-only Accept/Request changes → sign-in → back-to-proposal round
   trip. See DESIGN_NOTES for the full list.
+- **Phase 4a** — real persistence and auth: MongoDB (Mongoose) replaces the
+  JSON file store behind the same repository interfaces; the memory driver
+  (tests) is now a plain in-process store. Redis-backed sessions (opaque
+  id, sliding TTL, logout/revocation), rate limiting, and a short-TTL
+  dashboard-metrics cache. argon2 password hashing for every real account;
+  invite (team + client) and forgot/reset-password flows, each with
+  hashed/expiring/one-time-use tokens and a console `EmailProvider`. CSRF
+  Origin check on every mutating API request. Mongo transactions around
+  proposal acceptance, scope-change acceptance, and stage transitions. See
+  DESIGN_NOTES for the full list of deviations and substitutions.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 
@@ -253,10 +325,17 @@ See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and wh
 ```
 npm run lint        # eslint, 0 errors expected (a few next/image warnings on SVGs are fine)
 npm run typecheck   # tsc --noEmit
-npm run test        # vitest — unit tests for stage/content/design/invoice/contact/settings/scoping rules
+npm run test        # vitest — REPOSITORY_DRIVER=memory for everything except
+                     # mongo-repositories.test.ts, which talks to the real
+                     # rc_portal_test database and skips itself if Mongo isn't reachable
 npm run build        # next build — must succeed clean
 npx playwright test  # visual check at 1440px + 390px for every screen; builds and starts a production server (see below)
 ```
+
+Playwright (and any real manual testing) needs MongoDB and Redis actually
+running locally — `.env.local`'s `REPOSITORY_DRIVER=mongo` means the app
+itself depends on both. Run `npm run db:seed` at least once before the
+first Playwright run or manual sign-in against a fresh Mongo.
 
 Playwright's `webServer` now runs `next build && next start` (not `next
 dev`) with `ALLOW_DEMO_STATE=true`, so the dev-only demo-state fixture route

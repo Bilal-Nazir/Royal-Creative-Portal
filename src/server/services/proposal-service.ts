@@ -1,4 +1,5 @@
 import { proposalRepository, acceptanceRecordRepository, projectRepository } from "../repositories/container";
+import { withTransaction } from "../db/mongoose";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, notFound, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";
@@ -153,7 +154,14 @@ export async function sendProposalForReview(
   return ok(sent);
 }
 
-/** Called from R14 (the confirmation step) — accepting a proposal records who, when, which version, and how much. */
+/**
+ * Called from R14 (the confirmation step) — accepting a proposal records
+ * who, when, which version, and how much, then creates invoices and
+ * (possibly) advances the stage. Four documents, one transaction: a
+ * concurrent double-accept either both land cleanly (invoice ids are
+ * deterministic, so a retry's writes are idempotent no-ops) or one aborts
+ * and retries against the post-commit state — never a half-applied mix.
+ */
 export async function acceptProposal(
   session: SessionPayload,
   projectId: string,
@@ -166,26 +174,33 @@ export async function acceptProposal(
   const proposal = await proposalRepository.getCurrentVersion(projectId);
   if (!proposal) return notFound("Proposal not found.");
 
-  const updatedProposal: ProposalVersion = { ...proposal, status: "accepted" };
-  await proposalRepository.update(updatedProposal);
+  const record = await withTransaction(async (txSession) => {
+    const updatedProposal: ProposalVersion = { ...proposal, status: "accepted" };
+    await proposalRepository.update(updatedProposal, txSession);
 
-  const record: AcceptanceRecord = {
-    id: `accept-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    projectId,
-    proposalVersionId: proposal.id,
-    proposalVersionNumber: proposal.versionNumber,
-    amount: proposal.fee,
-    userId: session.userId,
-    userName: session.name,
-    acceptedAt: new Date().toISOString(),
-  };
-  await acceptanceRecordRepository.create(record);
-  // Without this, a brand-new project (A04) that goes brief -> proposal ->
-  // accept has no invoices for the deposit/launch stages to gate on or for
-  // the client to pay. createInvoicesFromPaymentSchedule is idempotent, so
-  // re-accepting (e.g. a re-sent proposal getting accepted again) never
-  // creates duplicates.
-  await createInvoicesFromPaymentSchedule(projectId, proposal.paymentSchedule.length > 0 ? proposal.paymentSchedule : [{ label: "Deposit", amount: proposal.fee }]);
-  await tryAdvanceStageIfGated(project);
+    const newRecord: AcceptanceRecord = {
+      id: `accept-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      projectId,
+      proposalVersionId: proposal.id,
+      proposalVersionNumber: proposal.versionNumber,
+      amount: proposal.fee,
+      userId: session.userId,
+      userName: session.name,
+      acceptedAt: new Date().toISOString(),
+    };
+    await acceptanceRecordRepository.create(newRecord, txSession);
+    // Without this, a brand-new project (A04) that goes brief -> proposal ->
+    // accept has no invoices for the deposit/launch stages to gate on or for
+    // the client to pay. createInvoicesFromPaymentSchedule is idempotent, so
+    // re-accepting (e.g. a re-sent proposal getting accepted again) never
+    // creates duplicates.
+    await createInvoicesFromPaymentSchedule(
+      projectId,
+      proposal.paymentSchedule.length > 0 ? proposal.paymentSchedule : [{ label: "Deposit", amount: proposal.fee }],
+      txSession,
+    );
+    await tryAdvanceStageIfGated(project, txSession);
+    return newRecord;
+  });
   return ok(record);
 }

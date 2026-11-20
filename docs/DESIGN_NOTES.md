@@ -916,3 +916,136 @@ Both brief review pages (`(client-project).../brief/page.tsx` and
 when the current brief's `status === "skipped"` — there's nothing to review
 or edit, and without this a direct URL visit (bypassing the now-unlinked
 journey sidebar) would render a confusing blank-brief editor/review screen.
+
+# Design notes — Phase 4a (MongoDB, Redis sessions, real auth)
+
+## Invoice dedup: no `(proposalVersionId, invoiceKind)` field, by design
+
+The brief for this phase asked for a unique index on `(proposalVersionId,
+invoiceKind)` so invoices can't duplicate. `Invoice` has no
+`proposalVersionId` field at all, and never has — every invoice this app
+creates already gets a **deterministic id** (`inv-{projectId}-deposit`,
+`inv-{projectId}-final`, `inv-{projectId}-additional-{scopeChangeId}`, see
+`invoice-service.ts`/`scope-change-service.ts`). That means Mongo's
+default unique `_id` index already gives the exact guarantee asked for —
+two concurrent "create this invoice" calls land on the same document
+either way. Adding an unused field to satisfy the letter of the spec
+without a real reader felt like the wrong kind of fidelity; this note is
+here instead so the substitution is visible rather than silently applied.
+
+## "Stage changes + activity log" transaction: no activity log exists
+
+There's no activity-log write path in this codebase — `ActivityItem`/
+`AttentionTask` are seeded, read-only data (`ActivityRepository`/
+`AttentionRepository` only have `listByClientId`, no `create`). The actual
+multi-document write on a stage transition is `tryAdvanceStageIfGated`'s
+project update, plus (on the development → launch transition)
+`activateScheduledInvoices`'s invoice updates and the `final_invoice_due`
+notification. That's what's wrapped in a transaction — the real multi-write
+this codebase has, in place of a literal "activity log" that was never built.
+
+## Transactions thread an optional `ClientSession`, not a blanket repository rewrite
+
+`withTransaction` (`server/db/mongoose.ts`) branches on `REPOSITORY_DRIVER`:
+a real Mongo transaction when `mongo`, or just `fn(null)` directly for
+`memory` (no connection attempted at all — nothing to transact, and the
+memory driver's tests don't need one). Threading it through every one of
+the 24 repository interfaces' ~150 methods would have been a true
+"refactor outside this scope." Instead, exactly the methods the three
+required transactions touch (`ProjectRepository.update`,
+`ProposalRepository.update`, `AcceptanceRecordRepository.create`,
+`InvoiceRepository.update`, `ScopeChangeRepository.update`,
+`NotificationRepository.create`) gained an **optional**, trailing
+`session?: ClientSession | null` parameter — every existing call site that
+omits it is unaffected (TypeScript accepts a class method implementing an
+interface with fewer parameters than the interface declares, so the
+in-memory repositories didn't need touching at all). `acceptProposal` and
+`acceptScopeChange` each wrap their whole body in `withTransaction` and
+pass the session down through `createInvoicesFromPaymentSchedule`/
+`tryAdvanceStageIfGated`/`notifyAgency`/`notifyClient`.
+`tryAdvanceStageIfGated` itself starts its own transaction when called with
+no session at all (standalone, from the many other places that call it),
+and joins the caller's instead when one's passed in — so it's never nested.
+
+## Mongoose schema convention: `id` as `_id`, timestamps under different names
+
+Every domain type's own `id` field is the Mongo document's `_id` (a plain
+`String`, never an ObjectId) — `ShareLink` and `AgencySettings` are the two
+exceptions, since those domain types never had an `id` field to begin
+with (`ShareLink` is keyed by `token`; `AgencySettings` is a fixed
+singleton document). Mongoose's `timestamps: true` is still turned on for
+every schema (the brief's literal ask), but under renamed fields
+(`_createdAt`/`_updatedAt`) specifically because almost every entity
+already has its *own* `createdAt: string` — a different thing, set by
+application logic, not Mongo. Colliding the two would have silently
+corrupted the existing field on every write. The repository layer strips
+`_id`/`__v`/`_createdAt`/`_updatedAt` before returning anything, so a
+caller never sees Mongo's internals leak into a domain object.
+
+## Password hashing: two formats, one dual-verify function
+
+`hashPassword`/`verifyPassword` (`auth/password.ts`) — the original scrypt
+implementation — are unchanged and still used by `seed-data.ts`'s
+`SEED_USERS` (hashed synchronously at module load, which argon2's
+async-only API can't do) for the `REPOSITORY_DRIVER=memory` test path.
+`hashPasswordSecure` (new, argon2) is what every *real* password goes
+through now: `db:seed`, invite-accept, and password-reset.
+`verifyPassword` became async and dispatches on the stored hash's prefix
+(`$argon2...` vs the legacy `salt:hash` shape), so the one call site in
+`auth-service.ts`'s `signIn` verifies either format correctly regardless
+of which driver (and therefore which hashing scheme) produced the account.
+
+## A20 "Invite team member" now goes through the real invite flow
+
+Previously: typed a temporary password, created the `AgencyUser` instantly,
+no email. Now: creates a pending `Invite`, emails (via the dev console
+`EmailProvider`) a link to `/invite/[token]`, and the real `AgencyUser`
+record is only created once they accept it and set their own password —
+consistent with the client-invite flow this phase also adds. `TeamManager`
+no longer optimistically appends a fake team member to the visible list on
+"Send invite" (they aren't one yet); it shows "Invite sent to {email}."
+instead. `settings-service.ts` lost its own `inviteTeamMember` — the one in
+`invite-service.ts` is now the only one, and `/api/agency/team` points at it.
+
+## Rate limiting is disabled when `ALLOW_DEMO_STATE=true`
+
+5 attempts per 15 minutes per `action:email:ip` would otherwise make the
+Playwright suite's `signIn()` helper — called dozens of times across every
+spec file against the same handful of seeded accounts — start failing with
+429s partway through a run. `ALLOW_DEMO_STATE=true` is already this
+codebase's existing signal for "this is the e2e run" (see the demo-state
+route's own gate); `checkRateLimit` reuses it rather than inventing a
+second one.
+
+## CSRF: `/api/dev/demo-state` is exempt from the Origin check
+
+Every other mutating `/api/*` request now needs a matching `Origin` header
+(checked in `src/proxy.ts`, which also gained `/api/:path*` to its matcher
+— previously excluded entirely). The demo-state route is the one
+exception: it's already a documented test-only fixture control with *no*
+session check at all by design, and Playwright's `request.post()` calls it
+directly rather than through a page's real `fetch()`, so it never carries a
+browser-set `Origin` header. Every real app mutation goes through the
+browser from a loaded page, which does set `Origin` on `fetch()` calls
+regardless of method — those are unaffected.
+
+## `/invite`, `/forgot-password`, `/reset-password` — not in Figma
+
+Built in C17's sign-in-page style (centered card, same `Field`/`Button`,
+same `Logo` header) since there's no Figma frame for any of them. Added to
+`proxy.ts`'s `PUBLIC_PREFIXES` so an unauthenticated visitor following an
+emailed link isn't bounced to sign-in before they can act on it. The
+sign-in page's existing `?variant=brief` copy ("Sign in to approve the
+brief...") was reworded slightly ("Sign in to continue...") since it's now
+shared by the brief guest flow and nothing else — a second variant for one
+sentence's difference felt like the wrong layer to add complexity at.
+
+## Repository tests skip cleanly, not loudly, when Mongo isn't running
+
+`mongo-repositories.test.ts` probes `MONGODB_URI` with a 2-second timeout
+at module load (top-level `await`, supported under Vitest's ESM) and wraps
+its whole `describe` in `describe.skipIf(!mongoAvailable)`. This dev
+environment doesn't always have MongoDB started, and a hard failure there
+would make `npm run test` look broken for a reason unrelated to the code —
+skipped (visibly, in the test output) is more honest than either failing
+the whole suite or silently asserting nothing.

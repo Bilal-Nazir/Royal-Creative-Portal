@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionFromCookies } from "@/server/auth/cookies";
-import { inviteTeamMember } from "@/server/services/settings-service";
+import { inviteTeamMember } from "@/server/services/invite-service";
 
 const bodySchema = z.object({
   name: z.string().min(1),
@@ -19,5 +19,5 @@ export async function POST(request: Request) {
 
   const result = await inviteTeamMember(session, parsed.data);
   if (!result.ok) return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
-  return NextResponse.json({ ok: true, user: { id: result.data.id, name: result.data.name, email: result.data.email, agencyRole: result.data.agencyRole } });
+  return NextResponse.json({ ok: true, invite: { email: result.data.email, expiresAt: result.data.expiresAt } });
 }

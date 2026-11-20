@@ -5,6 +5,9 @@ import { projectRepository } from "@/server/repositories/container";
 import { getBriefForProject } from "@/server/services/brief-service";
 import { ClientShell } from "@/components/layout/ClientShell";
 
+// Live, per-session Mongo data — never prerender at build time.
+export const dynamic = "force-dynamic";
+
 export default async function ProjectLayout({
   children,
   params,

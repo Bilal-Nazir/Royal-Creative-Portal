@@ -1,4 +1,5 @@
 import { scopeChangeRepository, projectRepository, invoiceRepository } from "../repositories/container";
+import { withTransaction } from "../db/mongoose";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, badRequest, notFound, type ServiceResult } from "./result";
 import { notifyAgency, notifyClient } from "./notification-service";
@@ -50,41 +51,52 @@ export async function createScopeChange(
   return ok(scopeChange);
 }
 
-/** R09 "Approve scope change" — records acceptance and creates a separate "additional work" invoice. Existing work continues either way. */
+/**
+ * R09 "Approve scope change" — records acceptance and creates a separate
+ * "additional work" invoice. Existing work continues either way. The
+ * pending-status check and the writes all run inside one transaction, so a
+ * concurrent double-accept either both land (the invoice id is
+ * deterministic per scope change, so a retried write is a no-op) or the
+ * loser's transaction retries against the post-commit "already decided"
+ * state and correctly returns badRequest instead of double-invoicing.
+ */
 export async function acceptScopeChange(session: SessionPayload, projectId: string, scopeChangeId: string): Promise<ServiceResult<ScopeChange>> {
   const project = await projectRepository.findById(projectId);
   if (!project) return notFound("Project not found.");
   const denied = assertClientCanActOnProject<ScopeChange>(session, project);
   if (denied) return denied;
 
-  const scopeChange = await scopeChangeRepository.findById(scopeChangeId);
-  if (!scopeChange || scopeChange.projectId !== projectId) return notFound("Scope change not found.");
-  if (scopeChange.status !== "pending") return badRequest("This scope change has already been decided.");
+  const outcome = await withTransaction(async (txSession) => {
+    const scopeChange = await scopeChangeRepository.findById(scopeChangeId);
+    if (!scopeChange || scopeChange.projectId !== projectId) return notFound<ScopeChange>("Scope change not found.");
+    if (scopeChange.status !== "pending") return badRequest<ScopeChange>("This scope change has already been decided.");
 
-  const existingInvoices = await invoiceRepository.listByProjectId(projectId);
-  const invoiceNumber = `RC-${1100 + existingInvoices.length}`;
-  const invoice: Invoice = {
-    id: `inv-${projectId}-additional-${scopeChange.id}`,
-    projectId,
-    type: "additional",
-    invoiceNumber,
-    amount: scopeChange.additionalFee,
-    status: "unpaid",
-    dueDate: new Date().toISOString().slice(0, 10),
-  };
-  await invoiceRepository.update(invoice);
+    const existingInvoices = await invoiceRepository.listByProjectId(projectId);
+    const invoiceNumber = `RC-${1100 + existingInvoices.length}`;
+    const invoice: Invoice = {
+      id: `inv-${projectId}-additional-${scopeChange.id}`,
+      projectId,
+      type: "additional",
+      invoiceNumber,
+      amount: scopeChange.additionalFee,
+      status: "unpaid",
+      dueDate: new Date().toISOString().slice(0, 10),
+    };
+    await invoiceRepository.update(invoice, txSession);
 
-  const updated: ScopeChange = {
-    ...scopeChange,
-    status: "accepted",
-    decidedByUserId: session.userId,
-    decidedByName: session.name,
-    decidedAt: new Date().toISOString(),
-    additionalInvoiceId: invoice.id,
-  };
-  await scopeChangeRepository.update(updated);
-  await notifyAgency(projectId, "scope_change_accepted", "Scope change accepted", `${session.name} accepted "${scopeChange.title}".`);
-  return ok(updated);
+    const updated: ScopeChange = {
+      ...scopeChange,
+      status: "accepted",
+      decidedByUserId: session.userId,
+      decidedByName: session.name,
+      decidedAt: new Date().toISOString(),
+      additionalInvoiceId: invoice.id,
+    };
+    await scopeChangeRepository.update(updated, txSession);
+    await notifyAgency(projectId, "scope_change_accepted", "Scope change accepted", `${session.name} accepted "${scopeChange.title}".`, txSession);
+    return ok(updated);
+  });
+  return outcome;
 }
 
 /** R09 "Discuss request" — declines the optional addition; the decision is recorded but nothing about the current stage changes. */

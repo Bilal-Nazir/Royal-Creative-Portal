@@ -14,6 +14,9 @@ import type { ScopeChange } from "../domain/scope-change";
 import type { HandoverResource } from "../domain/handover-resource";
 import type { Contact, ContactStage, ContactActivity } from "../domain/contact";
 import type { AgencySettings } from "../domain/settings";
+import type { Invite } from "../domain/invite";
+import type { PasswordResetToken } from "../domain/password-reset";
+import type { ClientSession } from "mongoose";
 
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
@@ -32,7 +35,8 @@ export interface ProjectRepository {
   listByClientId(clientId: string): Promise<Project[]>;
   listByAssigneeId(assigneeId: string): Promise<Project[]>;
   findById(id: string): Promise<Project | null>;
-  update(project: Project): Promise<void>;
+  /** `session`, when given, runs this write inside the caller's Mongo transaction (see db/mongoose.ts) — ignored by the memory driver. */
+  update(project: Project, session?: ClientSession | null): Promise<void>;
   create(project: Project): Promise<void>;
 }
 
@@ -56,13 +60,13 @@ export interface ProposalRepository {
   listAll(): Promise<ProposalVersion[]>;
   getCurrentVersion(projectId: string): Promise<ProposalVersion | null>;
   findVersionById(id: string): Promise<ProposalVersion | null>;
-  update(version: ProposalVersion): Promise<void>;
+  update(version: ProposalVersion, session?: ClientSession | null): Promise<void>;
   create(version: ProposalVersion): Promise<void>;
 }
 
 export interface AcceptanceRecordRepository {
   listByProjectId(projectId: string): Promise<AcceptanceRecord[]>;
-  create(record: AcceptanceRecord): Promise<void>;
+  create(record: AcceptanceRecord, session?: ClientSession | null): Promise<void>;
 }
 
 export interface InvoiceRepository {
@@ -70,7 +74,7 @@ export interface InvoiceRepository {
   listByProjectId(projectId: string): Promise<Invoice[]>;
   getDepositInvoice(projectId: string): Promise<Invoice | null>;
   findById(id: string): Promise<Invoice | null>;
-  update(invoice: Invoice): Promise<void>;
+  update(invoice: Invoice, session?: ClientSession | null): Promise<void>;
 }
 
 export interface CommentRepository {
@@ -123,7 +127,7 @@ export interface ScopeChangeRepository {
   listByProjectId(projectId: string): Promise<ScopeChange[]>;
   findById(id: string): Promise<ScopeChange | null>;
   create(scopeChange: ScopeChange): Promise<void>;
-  update(scopeChange: ScopeChange): Promise<void>;
+  update(scopeChange: ScopeChange, session?: ClientSession | null): Promise<void>;
 }
 
 export interface HandoverResourceRepository {
@@ -145,7 +149,7 @@ export interface ConversationReadRepository {
 }
 
 export interface NotificationRepository {
-  create(notification: Notification): Promise<void>;
+  create(notification: Notification, session?: ClientSession | null): Promise<void>;
   listByProjectId(projectId: string): Promise<Notification[]>;
   listAll(): Promise<Notification[]>;
   findById(id: string): Promise<Notification | null>;
@@ -182,4 +186,16 @@ export interface UploadedFileRepository {
   /** Client/agency "Files" nav pages (Phase 3) — every file shared on a project, both directions. */
   listByProjectId(projectId: string): Promise<UploadedFile[]>;
   create(file: UploadedFile): Promise<void>;
+}
+
+export interface InviteRepository {
+  findByTokenHash(tokenHash: string): Promise<Invite | null>;
+  create(invite: Invite): Promise<void>;
+  update(invite: Invite): Promise<void>;
+}
+
+export interface PasswordResetTokenRepository {
+  findByTokenHash(tokenHash: string): Promise<PasswordResetToken | null>;
+  create(token: PasswordResetToken): Promise<void>;
+  update(token: PasswordResetToken): Promise<void>;
 }

@@ -1,6 +1,20 @@
-import { projectRepository, briefRepository, proposalRepository, invoiceRepository, contentChecklistRepository } from "../repositories/container";
+import {
+  projectRepository,
+  briefRepository,
+  proposalRepository,
+  invoiceRepository,
+  contentChecklistRepository,
+  contentSubmissionRepository,
+  designVersionRepository,
+  designPinCommentRepository,
+  revisionRoundRepository,
+  handoverResourceRepository,
+  scopeChangeRepository,
+} from "../repositories/container";
 import { createInvoicesFromPaymentSchedule } from "./invoice-service";
-import { readStore, writeStore } from "../storage/file-store";
+import { env } from "../env";
+import { ContentSubmissionModel, DesignPinCommentModel, DesignVersionModel, RevisionRoundModel, HandoverResourceModel, ScopeChangeModel } from "../db/models";
+import { getStore } from "../repositories/in-memory/memory-store";
 import type { Stage } from "../domain/stage";
 import type { BriefStatus } from "../domain/brief";
 import type { ProposalStatus } from "../domain/proposal";
@@ -33,12 +47,21 @@ export interface DemoStatePatch {
 }
 
 const IMAGES_ITEM_ID = "content-royal-trendsy-images";
+const isMongo = env.REPOSITORY_DRIVER === "mongo";
 
 /**
  * Dev-only convenience for reaching every screen state without replaying the
  * full flow. Bypasses the normal permission/gate services on purpose — it's
  * a test fixture control, not a user-facing action — which is why the route
  * handler on top of this additionally checks NODE_ENV === "development".
+ *
+ * A handful of "clear this project's existing X, then rebuild" operations
+ * below go around the repository interfaces (same as before this phase,
+ * when they went around the file store directly) because no repository
+ * method exists for "delete every X matching this filter" — nothing else in
+ * the real app needs bulk delete, so one wasn't added to the shared
+ * interfaces for this dev-only tool alone. Branches on the same
+ * REPOSITORY_DRIVER switch as container.ts.
  */
 export async function setDemoState(patch: DemoStatePatch): Promise<void> {
   const project = await projectRepository.findById(patch.projectId);
@@ -79,6 +102,49 @@ export async function setDemoState(patch: DemoStatePatch): Promise<void> {
   if (patch.scopeChangeScenario) await applyScopeChangeScenario(patch.projectId, patch.scopeChangeScenario);
 }
 
+async function clearContentSubmissionsForItem(checklistItemId: string): Promise<void> {
+  if (isMongo) {
+    await ContentSubmissionModel.deleteMany({ checklistItemId });
+    return;
+  }
+  const store = getStore();
+  store.contentSubmissions = store.contentSubmissions.filter((s) => s.checklistItemId !== checklistItemId);
+}
+
+async function clearReviewData(projectId: string, kind: ReviewKind): Promise<void> {
+  if (isMongo) {
+    const versionIds = (await DesignVersionModel.find({ projectId, kind }).select("_id").lean()).map((v) => String(v._id));
+    await DesignPinCommentModel.deleteMany({ designVersionId: { $in: versionIds } });
+    await DesignVersionModel.deleteMany({ projectId, kind });
+    await RevisionRoundModel.deleteMany({ projectId, kind });
+    return;
+  }
+  const store = getStore();
+  store.designPinComments = store.designPinComments.filter(
+    (c) => !store.designVersions.some((v) => v.id === c.designVersionId && v.projectId === projectId && v.kind === kind),
+  );
+  store.designVersions = store.designVersions.filter((v) => !(v.projectId === projectId && v.kind === kind));
+  store.revisionRounds = store.revisionRounds.filter((r) => !(r.projectId === projectId && r.kind === kind));
+}
+
+async function clearHandoverResources(projectId: string): Promise<void> {
+  if (isMongo) {
+    await HandoverResourceModel.deleteMany({ projectId });
+    return;
+  }
+  const store = getStore();
+  store.handoverResources = store.handoverResources.filter((r) => r.projectId !== projectId);
+}
+
+async function clearScopeChanges(projectId: string): Promise<void> {
+  if (isMongo) {
+    await ScopeChangeModel.deleteMany({ projectId });
+    return;
+  }
+  const store = getStore();
+  store.scopeChanges = store.scopeChanges.filter((s) => s.projectId !== projectId);
+}
+
 /**
  * Puts the "Images and videos" checklist item into one of C11/A09's three
  * reachable states. Clears any prior submission for the item first so
@@ -88,9 +154,7 @@ async function applyContentScenario(projectId: string, scenario: ContentScenario
   const item = await contentChecklistRepository.findById(IMAGES_ITEM_ID);
   if (!item || item.projectId !== projectId) return;
 
-  const store = readStore();
-  store.contentSubmissions = store.contentSubmissions.filter((s) => s.checklistItemId !== IMAGES_ITEM_ID);
-  writeStore(store);
+  await clearContentSubmissionsForItem(IMAGES_ITEM_ID);
 
   if (scenario === "baseline") {
     await contentChecklistRepository.update({ ...item, status: "not_started" });
@@ -107,9 +171,7 @@ async function applyContentScenario(projectId: string, scenario: ContentScenario
     submittedAt: new Date().toISOString(),
     sharedLink: "Google Drive · Product photos",
   };
-  const store2 = readStore();
-  store2.contentSubmissions.push(submission);
-  writeStore(store2);
+  await contentSubmissionRepository.create(submission);
 
   if (scenario === "images_submitted") {
     await contentChecklistRepository.update({ ...item, status: "submitted" });
@@ -127,13 +189,7 @@ async function applyContentScenario(projectId: string, scenario: ContentScenario
  * discriminator (see domain/design.ts).
  */
 async function applyReviewScenario(projectId: string, kind: ReviewKind, scenario: ReviewScenario): Promise<void> {
-  const store = readStore();
-  store.designPinComments = store.designPinComments.filter(
-    (c) => !store.designVersions.some((v) => v.id === c.designVersionId && v.projectId === projectId && v.kind === kind),
-  );
-  store.designVersions = store.designVersions.filter((v) => !(v.projectId === projectId && v.kind === kind));
-  store.revisionRounds = store.revisionRounds.filter((r) => !(r.projectId === projectId && r.kind === kind));
-  writeStore(store);
+  await clearReviewData(projectId, kind);
 
   if (scenario === "none") return;
 
@@ -153,6 +209,7 @@ async function applyReviewScenario(projectId: string, kind: ReviewKind, scenario
     createdAt: new Date().toISOString(),
     status: scenario === "approved" || scenario === "v2_ready" ? "superseded" : "shared",
   };
+  await designVersionRepository.create(v1);
 
   const pin1: DesignPinComment = {
     id: `pin-${kind}-${projectId}-v1-1`,
@@ -185,10 +242,9 @@ async function applyReviewScenario(projectId: string, kind: ReviewKind, scenario
     status: "open",
   };
 
-  const store2 = readStore();
-  store2.designVersions.push(v1);
   if (scenario !== "v1_shared") {
-    store2.designPinComments.push(pin1, pin2);
+    await designPinCommentRepository.create(pin1);
+    await designPinCommentRepository.create(pin2);
   }
 
   if (scenario === "round1_submitted" || scenario === "v2_ready" || scenario === "approved") {
@@ -204,7 +260,7 @@ async function applyReviewScenario(projectId: string, kind: ReviewKind, scenario
       workflowStatus: scenario === "round1_submitted" ? "submitted" : "completed",
       overAllowance: false,
     };
-    store2.revisionRounds.push(round);
+    await revisionRoundRepository.create(round);
   }
 
   if (scenario === "v2_ready" || scenario === "approved") {
@@ -228,10 +284,8 @@ async function applyReviewScenario(projectId: string, kind: ReviewKind, scenario
       approvedByName: scenario === "approved" ? "Alex" : undefined,
       approvedAt: scenario === "approved" ? new Date().toISOString() : undefined,
     };
-    store2.designVersions.push(v2);
+    await designVersionRepository.create(v2);
   }
-
-  writeStore(store2);
 }
 
 /** A13/C14 — sets the launch checklist and launch details directly (dev-only bypass, same rationale as setDemoState above). */
@@ -290,8 +344,7 @@ async function applyFinalInvoiceStatus(projectId: string, status: InvoiceStatus)
 
 /** C15/A13 — seeds the handover resources list so C15 has something to show without going through the real upload flow. */
 async function applyHandoverScenario(projectId: string, scenario: HandoverScenario): Promise<void> {
-  const store = readStore();
-  store.handoverResources = store.handoverResources.filter((r) => r.projectId !== projectId);
+  await clearHandoverResources(projectId);
 
   if (scenario === "resources_added") {
     const guide: HandoverResource = {
@@ -312,15 +365,14 @@ async function applyHandoverScenario(projectId: string, scenario: HandoverScenar
       addedByName: "Jerry Royal",
       addedAt: new Date().toISOString(),
     };
-    store.handoverResources.push(guide, training);
+    await handoverResourceRepository.create(guide);
+    await handoverResourceRepository.create(training);
   }
-  writeStore(store);
 }
 
 /** R09/A16 — seeds a single demo scope change in the requested decision state. */
 async function applyScopeChangeScenario(projectId: string, scenario: ScopeChangeScenario): Promise<void> {
-  const store = readStore();
-  store.scopeChanges = store.scopeChanges.filter((s) => s.projectId !== projectId);
+  await clearScopeChanges(projectId);
 
   if (scenario !== "none") {
     const status: ScopeChangeStatus = scenario;
@@ -338,7 +390,6 @@ async function applyScopeChangeScenario(projectId: string, scenario: ScopeChange
       decidedByName: status !== "pending" ? "Alex" : undefined,
       decidedAt: status !== "pending" ? new Date().toISOString() : undefined,
     };
-    store.scopeChanges.push(scopeChange);
+    await scopeChangeRepository.create(scopeChange);
   }
-  writeStore(store);
 }

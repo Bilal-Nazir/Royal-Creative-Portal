@@ -99,6 +99,9 @@ function SignInForm() {
             <Button type="submit" variant="primary" disabled={submitting} className="w-[196px]">
               {submitting ? "Signing in…" : "Sign in"}
             </Button>
+            <a href="/forgot-password" className="text-sm text-ink-secondary hover:underline">
+              Forgot your password?
+            </a>
           </form>
         </div>
       </main>

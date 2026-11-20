@@ -4,7 +4,7 @@ import { createProject } from "./project-service";
 import { computeGateState } from "./stage-service";
 import { getShareLinkForProject, getGuestProjectView } from "./share-service";
 import { projectRepository, briefRepository, proposalRepository } from "../repositories/container";
-import { resetStore } from "../storage/file-store";
+import { resetStore } from "../repositories/in-memory/memory-store";
 import { completedStageCount } from "../domain/stage";
 import type { SessionPayload } from "../auth/session";
 import type { Project } from "../domain/project";

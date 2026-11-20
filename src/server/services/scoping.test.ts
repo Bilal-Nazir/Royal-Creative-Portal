@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getConversationsForSession } from "./message-service";
 import { getNotificationsForSession } from "./notification-service";
-import { resetStore } from "../storage/file-store";
+import { resetStore } from "../repositories/in-memory/memory-store";
 import type { SessionPayload } from "../auth/session";
 
 const agencyOwner: SessionPayload = { userId: "u-jerry", role: "agency", name: "Jerry Royal", agencyRole: "owner" };

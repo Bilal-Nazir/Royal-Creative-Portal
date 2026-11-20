@@ -1,3 +1,4 @@
+import type { ClientSession } from "mongoose";
 import {
   briefRepository,
   proposalRepository,
@@ -6,6 +7,7 @@ import {
   designVersionRepository,
   projectRepository,
 } from "../repositories/container";
+import { withTransaction } from "../db/mongoose";
 import { requiredItemsAllAccepted } from "../domain/content";
 import { isInvoiceConfirmed, type Invoice } from "../domain/invoice";
 import { isLaunchChecklistComplete, type Project } from "../domain/project";
@@ -37,23 +39,36 @@ export async function computeGateState(project: Project): Promise<ProjectGateSta
   };
 }
 
-/** Advances the project's stage if its current gate is now satisfied; otherwise leaves it unchanged. */
-export async function tryAdvanceStageIfGated(project: Project): Promise<Project> {
+/**
+ * Advances the project's stage if its current gate is now satisfied;
+ * otherwise leaves it unchanged. This is a multi-document write (the
+ * project, and — on the development -> launch transition — every scheduled
+ * invoice plus a notification), so it runs inside a Mongo transaction.
+ * When `session` is omitted entirely, this call owns and starts its own
+ * transaction; when a caller (e.g. acceptProposal) already has one open and
+ * passes it through, this just joins it instead of nesting a second one.
+ */
+export async function tryAdvanceStageIfGated(project: Project, session?: ClientSession | null): Promise<Project> {
   const gates = await computeGateState(project);
   const result = canAdvance(project.stage, gates);
-  if (result.allowed && result.nextStage) {
+  if (!result.allowed || !result.nextStage) return project;
+  const nextStage = result.nextStage;
+
+  const advance = async (txSession: ClientSession | null): Promise<Project> => {
     const updated: Project = {
       ...project,
-      stage: result.nextStage,
+      stage: nextStage,
       // A00's "Completed this month" metric needs a real completion
       // timestamp — Project has no other record of when a stage was reached.
-      ...(result.nextStage === "handover" ? { handoverAt: new Date().toISOString() } : {}),
+      ...(nextStage === "handover" ? { handoverAt: new Date().toISOString() } : {}),
     };
-    await projectRepository.update(updated);
-    if (result.nextStage === "launch") await activateScheduledInvoices(project.id);
+    await projectRepository.update(updated, txSession);
+    if (nextStage === "launch") await activateScheduledInvoices(project.id, txSession);
     return updated;
-  }
-  return project;
+  };
+
+  if (session !== undefined) return advance(session);
+  return withTransaction(advance);
 }
 
 /**
@@ -64,7 +79,7 @@ export async function tryAdvanceStageIfGated(project: Project): Promise<Project>
  * already imports tryAdvanceStageIfGated from this module — importing the
  * other way back would be circular.
  */
-export async function activateScheduledInvoices(projectId: string): Promise<void> {
+export async function activateScheduledInvoices(projectId: string, session?: ClientSession | null): Promise<void> {
   const invoices = await invoiceRepository.listByProjectId(projectId);
   const dueNow = new Date().toISOString().slice(0, 10);
   let activatedAny = false;
@@ -72,11 +87,11 @@ export async function activateScheduledInvoices(projectId: string): Promise<void
   for (const invoice of invoices) {
     if (invoice.status !== "scheduled") continue;
     const updated: Invoice = { ...invoice, status: "unpaid", dueDate: dueNow };
-    await invoiceRepository.update(updated);
+    await invoiceRepository.update(updated, session);
     activatedAny = true;
   }
 
   if (activatedAny) {
-    await notifyClient(projectId, "final_invoice_due", "Final invoice due", "Your final invoice is now due.");
+    await notifyClient(projectId, "final_invoice_due", "Final invoice due", "Your final invoice is now due.", session);
   }
 }

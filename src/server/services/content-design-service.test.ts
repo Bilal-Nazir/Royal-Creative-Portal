@@ -11,7 +11,7 @@ import {
 } from "./design-service";
 import { computeGateState } from "./stage-service";
 import { projectRepository, proposalRepository, notificationRepository } from "../repositories/container";
-import { resetStore } from "../storage/file-store";
+import { resetStore } from "../repositories/in-memory/memory-store";
 import type { SessionPayload } from "../auth/session";
 
 const PROJECT_ID = "proj-royal-trendsy";

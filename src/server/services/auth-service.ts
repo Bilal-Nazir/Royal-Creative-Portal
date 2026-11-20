@@ -9,7 +9,7 @@ export type SignInResult =
 
 export async function signIn(email: string, password: string): Promise<SignInResult> {
   const user = await userRepository.findByEmail(email);
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return { ok: false, error: "Invalid email or password." };
   }
 

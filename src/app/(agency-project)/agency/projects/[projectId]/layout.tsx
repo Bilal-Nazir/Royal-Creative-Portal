@@ -6,6 +6,9 @@ import { filterProjectsForAgencyUser } from "@/server/services/permissions";
 import { getBriefForProject } from "@/server/services/brief-service";
 import { AgencyShell } from "@/components/layout/AgencyShell";
 
+// Live, per-session Mongo data — never prerender at build time.
+export const dynamic = "force-dynamic";
+
 export default async function AgencyProjectLayout({
   children,
   params,

@@ -12,8 +12,11 @@ export async function setSessionCookie(token: string): Promise<void> {
   });
 }
 
+/** Logout — deletes the Redis-side session (not just the cookie), so the token can't be replayed if it leaked. */
 export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
+  if (token) await sessionService.destroy(token);
   store.delete(SESSION_COOKIE_NAME);
 }
 

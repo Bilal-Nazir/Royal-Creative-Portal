@@ -1,5 +1,5 @@
 import { agencySettingsRepository, userRepository } from "../repositories/container";
-import { hashPassword } from "../auth/password";
+import { sessionService } from "../auth/session";
 import { ok, forbidden, notFound, badRequest, type ServiceResult } from "./result";
 import type { SessionPayload } from "../auth/session";
 import type { AgencySettings } from "../domain/settings";
@@ -40,34 +40,7 @@ export async function listTeam(): Promise<AgencyUser[]> {
   return users.filter((u): u is AgencyUser => u.role === "agency");
 }
 
-export interface InviteTeamMemberInput {
-  name: string;
-  email: string;
-  agencyRole: AgencyRole;
-}
-
-/** "Invite" just creates the user directly — no email flow in this phase. A temporary password is generated; there's no reset/first-login flow yet. */
-export async function inviteTeamMember(session: SessionPayload, input: InviteTeamMemberInput): Promise<ServiceResult<AgencyUser>> {
-  const denied = assertOwnerOrAdmin<AgencyUser>(session);
-  if (denied) return denied;
-
-  const existing = await userRepository.findByEmail(input.email);
-  if (existing) return badRequest("Someone with that email already exists.");
-
-  const temporaryPassword = Math.random().toString(36).slice(2, 10);
-  const user: AgencyUser = {
-    id: `u-${input.email.split("@")[0].replace(/[^a-z0-9]/gi, "").toLowerCase()}-${Date.now().toString(36)}`,
-    role: "agency",
-    agencyRole: input.agencyRole,
-    name: input.name,
-    email: input.email,
-    passwordHash: hashPassword(temporaryPassword),
-  };
-  await userRepository.create(user);
-  return ok(user);
-}
-
-/** Only the owner can change roles (not even an admin) — explicit requirement, stricter than the invite/remove gate above. */
+/** Only the owner can change roles (not even an admin) — explicit requirement, stricter than the invite/remove gate above. Revokes every session that user currently has — see DESIGN_NOTES. */
 export async function changeTeamMemberRole(
   session: SessionPayload,
   userId: string,
@@ -88,6 +61,7 @@ export async function changeTeamMemberRole(
 
   const updated: AgencyUser = { ...user, agencyRole };
   await userRepository.update(updated);
+  await sessionService.revokeAllForUser(userId);
   return ok(updated);
 }
 

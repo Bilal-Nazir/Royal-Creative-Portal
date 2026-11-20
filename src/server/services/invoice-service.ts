@@ -1,3 +1,4 @@
+import type { ClientSession } from "mongoose";
 import { invoiceRepository, projectRepository } from "../repositories/container";
 import { paymentProvider } from "../payments/mock-provider";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
@@ -47,7 +48,11 @@ async function tickFinalPaymentIfApplicable(invoice: Invoice, project: Project):
  * before creating one, so accepting the same proposal twice (or any other
  * repeat call) never creates duplicates.
  */
-export async function createInvoicesFromPaymentSchedule(projectId: string, schedule: PaymentScheduleItem[]): Promise<void> {
+export async function createInvoicesFromPaymentSchedule(
+  projectId: string,
+  schedule: PaymentScheduleItem[],
+  session?: ClientSession | null,
+): Promise<void> {
   if (schedule.length === 0) return;
 
   const existing = await invoiceRepository.listByProjectId(projectId);
@@ -88,7 +93,7 @@ export async function createInvoicesFromPaymentSchedule(projectId: string, sched
   }
 
   for (const invoice of created) {
-    await invoiceRepository.update(invoice);
+    await invoiceRepository.update(invoice, session);
   }
 }
 

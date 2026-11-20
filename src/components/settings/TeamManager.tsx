@@ -23,6 +23,7 @@ export function TeamManager({ initialTeam, currentUserId, isOwner }: TeamManager
   const [roleValue, setRoleValue] = useState<AgencyRole>("member");
   const [inviting, setInviting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function handleInvite(formData: FormData) {
@@ -43,7 +44,8 @@ export function TeamManager({ initialTeam, currentUserId, isOwner }: TeamManager
       setError(data.error ?? "Couldn't invite that person.");
       return;
     }
-    setTeam((prev) => [...prev, data.user as AgencyUser]);
+    // Not a real team member yet — they only show up in `team` once they accept the invite and sign in for the first time.
+    setInviteSentTo(data.invite.email as string);
     setInviting(false);
   }
 
@@ -159,6 +161,7 @@ export function TeamManager({ initialTeam, currentUserId, isOwner }: TeamManager
         </Button>
       )}
 
+      {inviteSentTo ? <p className="text-sm text-ink-secondary">Invite sent to {inviteSentTo}.</p> : null}
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}

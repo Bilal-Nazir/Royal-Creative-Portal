@@ -3,7 +3,7 @@ import { acceptProposal } from "./proposal-service";
 import { getDepositInvoice } from "./invoice-service";
 import { activateScheduledInvoices } from "./stage-service";
 import { invoiceRepository } from "../repositories/container";
-import { resetStore } from "../storage/file-store";
+import { resetStore } from "../repositories/in-memory/memory-store";
 import type { SessionPayload } from "../auth/session";
 
 /**

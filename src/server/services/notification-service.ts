@@ -1,3 +1,4 @@
+import type { ClientSession } from "mongoose";
 import { notificationRepository, projectRepository } from "../repositories/container";
 import type { SessionPayload } from "../auth/session";
 import { forbidden, notFound, ok, type ServiceResult } from "./result";
@@ -16,6 +17,7 @@ async function createNotification(
   title: string,
   body: string,
   recipientUserId?: string,
+  session?: ClientSession | null,
 ): Promise<void> {
   const notification: Notification = {
     id: `notification-${projectId}-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -27,15 +29,27 @@ async function createNotification(
     body,
     createdAt: new Date().toISOString(),
   };
-  await notificationRepository.create(notification);
+  await notificationRepository.create(notification, session);
 }
 
-export async function notifyAgency(projectId: string, type: NotificationType, title: string, body: string): Promise<void> {
-  await createNotification(projectId, type, "agency", title, body);
+export async function notifyAgency(
+  projectId: string,
+  type: NotificationType,
+  title: string,
+  body: string,
+  session?: ClientSession | null,
+): Promise<void> {
+  await createNotification(projectId, type, "agency", title, body, undefined, session);
 }
 
-export async function notifyClient(projectId: string, type: NotificationType, title: string, body: string): Promise<void> {
-  await createNotification(projectId, type, "client", title, body);
+export async function notifyClient(
+  projectId: string,
+  type: NotificationType,
+  title: string,
+  body: string,
+  session?: ClientSession | null,
+): Promise<void> {
+  await createNotification(projectId, type, "client", title, body, undefined, session);
 }
 
 /** R04 (and R18 later) — assigning work notifies that specific agency user, not just "agency" broadly. */
