@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Royal Creative — client/agency portal
 
-## Getting Started
+A Next.js (App Router) portal for Royal Creative and its clients to run a
+website project end to end: brief → proposal → deposit → content → design →
+development → launch → handover, plus payments, files, messaging and a
+contacts pipeline.
 
-First, run the development server:
+See [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) for the full
+architecture (stack, folder structure, data store, stage machine, auth,
+payments/storage/email drivers) and
+[`docs/DESIGN_NOTES.md`](docs/DESIGN_NOTES.md) for every deliberate
+deviation from the Figma file and why. This file is just enough to get the
+app running locally.
+
+## Requirements
+
+- Node.js 20+, npm
+- MongoDB, running as a (single-node is fine) **replica set** — required for
+  transactions. See "Local setup" in `docs/PROJECT_CONTEXT.md` for exact
+  conversion steps if your local Mongo is a standalone instance.
+- Redis
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in AUTH_SECRET, MONGODB_URI, REDIS_URL
+npm run db:seed              # wipes MONGODB_URI and loads demo data (asks for confirmation)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Every seeded account
+uses the password `password123` — see "Seeded logins" in
+`docs/PROJECT_CONTEXT.md` for the list of emails and roles.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run typecheck
+npm run test     # vitest — REPOSITORY_DRIVER=memory, no live Mongo needed except one skip-if-unreachable suite
+npm run build
+npx playwright test
+```
 
-## Learn More
+`npm audit` is expected to report 0 vulnerabilities; re-run it after any
+dependency change.
 
-To learn more about Next.js, take a look at the following resources:
+## Payments, storage and email
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Bank transfer, local disk, and console-logged email are the defaults —
+real S3/R2 storage and SMTP email are opt-in via env vars
+(`STORAGE_DRIVER=s3`, `EMAIL_DRIVER=smtp`). See `.env.example` and
+`docs/PROJECT_CONTEXT.md`'s "Payments, storage and email" section.

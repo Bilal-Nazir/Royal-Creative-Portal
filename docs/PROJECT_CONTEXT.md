@@ -369,6 +369,10 @@ needs `next dev`, `playwright.config.ts`'s e2e suite also runs against
   with one shared branded template wired into the existing notification
   events, and a server-generated PDF brief. A16/A18 gained an "Invite
   client" action. See DESIGN_NOTES for the full list.
+- **Final** — production readiness: security headers, branded 404/error/
+  global-error pages, redacting logger, a real README. Startup env
+  validation and `npm audit` were already clean from earlier phases. See
+  "Production readiness" below.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 
@@ -398,3 +402,36 @@ not guaranteed (each file's own tests are still serial).
 Kill any stray `next dev`/`next start` process bound to the port before
 re-running Playwright locally — a leftover process serving an old build will
 silently make results look wrong (it already happened once).
+
+## Production readiness
+
+- **Security headers** (`next.config.ts`'s `headers()`): `X-Frame-Options:
+  DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+  strict-origin-when-cross-origin`, a `Permissions-Policy` denying camera/
+  mic/geolocation, HSTS, and a `Content-Security-Policy` locked to `'self'`
+  except `script-src`/`style-src`, which keep `'unsafe-inline'` — Next's App
+  Router injects inline RSC-hydration scripts and Tailwind relies on inline
+  styles, and nonce-based CSP (removing the need for `'unsafe-inline'`)
+  would mean generating a per-request nonce in `proxy.ts` and threading it
+  through `next.config.ts`, which is out of scope for this pass.
+- **404 / error pages**: `src/app/not-found.tsx` (404), `src/app/error.tsx`
+  (the root error boundary — catches anything a route's own more specific
+  `error.tsx`, e.g. the design review route's, doesn't), and
+  `src/app/global-error.tsx` (fires only if the root layout itself throws;
+  renders its own bare `<html>/<body>` with no shared components, since
+  those may be what failed). All three are branded to the extent the
+  situation allows — `global-error.tsx` deliberately skips the design
+  system and custom fonts.
+- **Safe logging**: `server/logger.ts` — every server-side `console.error`
+  that logs a caught error or context object goes through `logger.error()`
+  instead, which recursively redacts any key matching
+  `password|secret|token|authorization|cookie|api[_-]?key` before it's
+  printed. The dev `ConsoleEmailProvider`'s own log (the whole point of
+  which is showing you the email, invite/reset links included) is the one
+  deliberate exception.
+- **Startup env check**: `server/env.ts` (Zod-validated, invoked from
+  `instrumentation.ts` on boot) — see "Local setup" above. Already covered
+  the `PAYMENT_DRIVER=mock`-in-production and S3/SMTP-driver-needs-its-vars
+  cases added in Phase 4b.
+- **`npm audit`**: 0 vulnerabilities as of this pass — re-run after any
+  dependency change, it isn't wired into CI yet.
