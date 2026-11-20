@@ -40,13 +40,18 @@ src/
                                (kanban), InvoiceList, PaymentStatusMenu, CopyClientLinkButton,
                                PreviewClientViewButton, FileDropField, PinOverlay,
                                DesignReviewWorkspace/Tabs, ChatPanel, ReadOnlyNotice,
-                               EmptyReviewCard
+                               EmptyReviewCard, ContactsBoard, PipelineStagesManager,
+                               LogFollowUpForm
+    notifications/              NotificationsView (A14), MessagesInbox (A29/A15, shared by
+                               agency + client)
+    settings/                  AgencySettingsForm, TeamManager (A20)
     dev/DemoStateSwitcher.tsx  dev-only, see below
   server/
     domain/                    plain types + pure functions (stage.ts, brief.ts, invoice.ts,
                                content.ts, design.ts [ReviewKind: design|development],
-                               scope-change.ts, handover-resource.ts, message.ts,
-                               notification.ts, upload.ts...)
+                               scope-change.ts, handover-resource.ts, message.ts
+                               [+ConversationRead], notification.ts, upload.ts, contact.ts,
+                               settings.ts...)
     repositories/               interfaces.ts + in-memory/ impls + container.ts (DI point)
     services/                  business rules + permission checks; return ServiceResult<T>
     auth/                       session (jose), password hashing, cookies, share tokens
@@ -211,6 +216,17 @@ needs `next dev`, `playwright.config.ts`'s e2e suite also runs against
   no separate agency screen). Scope change (R09 client accept/decline;
   creation has no Figma screen on either side). New `NotificationType`s for
   all of the above; demo switcher extended with 5 new scenario groups.
+- **Phase 3** — A00 dashboard rebuilt on real computed data (no more
+  hardcoded `AgencyOverview`); A14 notifications + a real TopBar unread
+  bell everywhere; A29/A15 cross-project messages inbox (agency + client);
+  a new Contacts pipeline (A17/A18/A28/A30 — custom stages, move, follow-up
+  log); A20 agency settings (details, owner contact wired to the client
+  sidebar, team invite/role-change/remove, notification toggles); A27
+  Stripe settings placeholder; client Messages/Files/Payments nav pages (no
+  Figma frames, built from existing services). `UserRepository` and the
+  client directory (`CLIENT_DIRECTORY` → `getClientDirectory()`) moved from
+  hardcoded/static to real file-store-backed data. See DESIGN_NOTES for the
+  full list.
 
 See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and why.
 
@@ -219,10 +235,16 @@ See `docs/DESIGN_NOTES.md` for the detailed list of deviations from Figma and wh
 ```
 npm run lint        # eslint, 0 errors expected (a few next/image warnings on SVGs are fine)
 npm run typecheck   # tsc --noEmit
-npm run test        # vitest — unit tests for stage/content/design/invoice rules + permissions
+npm run test        # vitest — unit tests for stage/content/design/invoice/contact/settings/scoping rules
 npm run build        # next build — must succeed clean
-npx playwright test  # visual check at 1440px + 390px for every screen; starts its own `next dev`
+npx playwright test  # visual check at 1440px + 390px for every screen; builds and starts a production server (see below)
 ```
+
+Playwright's `webServer` now runs `next build && next start` (not `next
+dev`) with `ALLOW_DEMO_STATE=true`, so the dev-only demo-state fixture route
+stays reachable under a production build — see DESIGN_NOTES (Phase 3) for
+why. `workers: 2`; cross-file state isolation during a concurrent run is
+not guaranteed (each file's own tests are still serial).
 
 Kill any stray `next dev`/`next start` process bound to the port before
 re-running Playwright locally — a leftover process serving an old build will

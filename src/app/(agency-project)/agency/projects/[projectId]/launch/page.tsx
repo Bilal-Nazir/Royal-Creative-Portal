@@ -4,9 +4,9 @@ import { projectRepository } from "@/server/repositories/container";
 import { getHandoverResources } from "@/server/services/handover-service";
 import { isLaunchChecklistComplete } from "@/server/domain/project";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";
 import { Badge } from "@/components/ui/Badge";
 import { ChecklistToggle } from "./checklist-toggle";
@@ -32,9 +32,7 @@ export default async function AgencyLaunchChecklistPage({ params }: { params: Pr
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

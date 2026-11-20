@@ -9,6 +9,7 @@ function project(overrides: Partial<Project> = {}): Project {
     name: "Royal Trendsy website",
     description: "Test fixture project.",
     projectType: "Website development",
+    createdAt: "2026-10-15T09:00:00.000Z",
     clientId: "royal-trendsy",
     clientName: "Royal Trendsy",
     contactName: "Jerry Royal",

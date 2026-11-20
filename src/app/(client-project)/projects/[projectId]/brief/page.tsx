@@ -5,6 +5,7 @@ import { getBriefForProject, getBriefComments } from "@/server/services/brief-se
 import { canAct } from "@/server/services/permissions";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -30,9 +31,7 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <Button variant="secondary" className="w-[180px]">
-      Notifications
-    </Button>
+    <NotificationsBell className="w-[180px]" />
   );
 
   if (brief.status === "approved") {

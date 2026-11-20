@@ -3,6 +3,7 @@ import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
 import { getHandoverResources } from "@/server/services/handover-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -27,9 +28,7 @@ export default async function HandoverPage({ params }: { params: Promise<{ proje
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

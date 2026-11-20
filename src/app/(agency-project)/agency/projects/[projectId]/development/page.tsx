@@ -4,6 +4,7 @@ import { projectRepository } from "@/server/repositories/container";
 import { getCurrentDesignVersion, getRevisionRounds } from "@/server/services/design-service";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -29,9 +30,7 @@ export default async function AgencyDevelopmentHubPage({ params }: { params: Pro
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

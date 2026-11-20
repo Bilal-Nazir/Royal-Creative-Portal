@@ -5,10 +5,10 @@ import { getProposalForProject } from "@/server/services/proposal-service";
 import { canAct } from "@/server/services/permissions";
 import { formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { AcceptActions } from "./accept-actions";
 
 export default async function ProposalAcceptPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -32,9 +32,7 @@ export default async function ProposalAcceptPage({ params }: { params: Promise<{
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

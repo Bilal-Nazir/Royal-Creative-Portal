@@ -5,6 +5,7 @@ import { getInternalComments } from "@/server/services/internal-comment-service"
 import { getScopeChanges } from "@/server/services/scope-change-service";
 import { formatDate, formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -31,9 +32,7 @@ export default async function AgencyProjectDetailPage({ params }: { params: Prom
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[200px]" />
         }
       />
       <PageHeader

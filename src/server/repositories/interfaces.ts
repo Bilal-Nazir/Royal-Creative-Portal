@@ -1,6 +1,5 @@
 import type { User } from "../domain/user";
 import type { Project, ActivityItem, AttentionTask } from "../domain/project";
-import type { AgencyOverview } from "../domain/dashboard";
 import type { BriefVersion } from "../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../domain/proposal";
 import type { Invoice } from "../domain/invoice";
@@ -8,15 +7,24 @@ import type { Comment, CommentTargetType } from "../domain/comment";
 import type { ContentChecklistItem, ContentSubmission } from "../domain/content";
 import type { ShareLink } from "../domain/share-link";
 import type { DesignVersion, DesignPinComment, RevisionRound, ReviewKind } from "../domain/design";
-import type { ProjectMessage } from "../domain/message";
+import type { ProjectMessage, ConversationRead } from "../domain/message";
 import type { Notification } from "../domain/notification";
 import type { UploadedFile } from "../domain/upload";
 import type { ScopeChange } from "../domain/scope-change";
 import type { HandoverResource } from "../domain/handover-resource";
+import type { Contact, ContactStage, ContactActivity } from "../domain/contact";
+import type { AgencySettings } from "../domain/settings";
 
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
+  /** A20 Team & access — agency users only, owner/admin-managed (Phase 3). */
+  listAgencyUsers(): Promise<User[]>;
+  /** A04's client directory (Phase 3) — real client users, not a hardcoded map. */
+  listClientUsers(): Promise<User[]>;
+  create(user: User): Promise<void>;
+  update(user: User): Promise<void>;
+  remove(id: string): Promise<void>;
 }
 
 export interface ProjectRepository {
@@ -36,10 +44,6 @@ export interface AttentionRepository {
   listByClientId(clientId: string): Promise<AttentionTask[]>;
 }
 
-export interface AgencyStatsRepository {
-  getOverview(): Promise<AgencyOverview>;
-}
-
 export interface BriefRepository {
   getCurrentVersion(projectId: string): Promise<BriefVersion | null>;
   update(version: BriefVersion): Promise<void>;
@@ -48,6 +52,8 @@ export interface BriefRepository {
 
 export interface ProposalRepository {
   listVersions(projectId: string): Promise<ProposalVersion[]>;
+  /** A00's "Proposal acceptance" commercial metric (Phase 3) — every version across every project. */
+  listAll(): Promise<ProposalVersion[]>;
   getCurrentVersion(projectId: string): Promise<ProposalVersion | null>;
   findVersionById(id: string): Promise<ProposalVersion | null>;
   update(version: ProposalVersion): Promise<void>;
@@ -129,15 +135,51 @@ export interface HandoverResourceRepository {
 
 export interface ProjectMessageRepository {
   listByProjectId(projectId: string): Promise<ProjectMessage[]>;
+  listAll(): Promise<ProjectMessage[]>;
   create(message: ProjectMessage): Promise<void>;
+}
+
+export interface ConversationReadRepository {
+  find(projectId: string, userId: string): Promise<ConversationRead | null>;
+  upsert(read: ConversationRead): Promise<void>;
 }
 
 export interface NotificationRepository {
   create(notification: Notification): Promise<void>;
   listByProjectId(projectId: string): Promise<Notification[]>;
+  listAll(): Promise<Notification[]>;
+  findById(id: string): Promise<Notification | null>;
+  update(notification: Notification): Promise<void>;
+}
+
+export interface ContactStageRepository {
+  listAll(): Promise<ContactStage[]>;
+  findById(id: string): Promise<ContactStage | null>;
+  create(stage: ContactStage): Promise<void>;
+  update(stage: ContactStage): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+export interface ContactRepository {
+  listAll(): Promise<Contact[]>;
+  findById(id: string): Promise<Contact | null>;
+  create(contact: Contact): Promise<void>;
+  update(contact: Contact): Promise<void>;
+}
+
+export interface ContactActivityRepository {
+  listByContactId(contactId: string): Promise<ContactActivity[]>;
+  create(activity: ContactActivity): Promise<void>;
+}
+
+export interface AgencySettingsRepository {
+  get(): Promise<AgencySettings>;
+  update(settings: AgencySettings): Promise<void>;
 }
 
 export interface UploadedFileRepository {
   findById(id: string): Promise<UploadedFile | null>;
+  /** Client/agency "Files" nav pages (Phase 3) — every file shared on a project, both directions. */
+  listByProjectId(projectId: string): Promise<UploadedFile[]>;
   create(file: UploadedFile): Promise<void>;
 }

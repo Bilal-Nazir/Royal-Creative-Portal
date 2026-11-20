@@ -7,7 +7,8 @@ import { Field } from "@/components/ui/Field";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import type { ClientDirectoryEntry } from "@/server/repositories/in-memory/seed-data-phase2a";
+import type { ClientDirectoryEntry } from "@/server/services/project-service";
+import { PROJECT_TYPES } from "@/server/domain/project";
 
 export interface NewProjectFormProps {
   assignees: Array<{ id: string; name: string }>;
@@ -29,9 +30,10 @@ export function NewProjectForm({ assignees, clients }: NewProjectFormProps) {
     const dueDate = String(formData.get("dueDate") ?? "").trim();
     const assigneeId = String(formData.get("assigneeId") ?? "").trim();
     const clientId = String(formData.get("clientId") ?? "").trim();
+    const projectType = String(formData.get("projectType") ?? "").trim();
 
-    if (!name || !dueDate || !assigneeId || !clientId) {
-      setError("Fill in the project name, client, due date and assignee.");
+    if (!name || !dueDate || !assigneeId || !clientId || !projectType) {
+      setError("Fill in the project name, type, client, due date and assignee.");
       return;
     }
 
@@ -41,7 +43,7 @@ export function NewProjectForm({ assignees, clients }: NewProjectFormProps) {
       const response = await fetch("/api/agency/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, dueDate, assigneeId, clientId }),
+        body: JSON.stringify({ name, description, projectType, dueDate, assigneeId, clientId }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) {
@@ -78,6 +80,14 @@ export function NewProjectForm({ assignees, clients }: NewProjectFormProps) {
           name="clientId"
           placeholder="Select a client"
           options={clients.map((c) => ({ value: c.clientId, label: `${c.clientName} · ${c.contactName}` }))}
+        />
+
+        <Select
+          label="Project type"
+          id="projectType"
+          name="projectType"
+          placeholder="Select a project type"
+          options={PROJECT_TYPES.map((type) => ({ value: type, label: type }))}
         />
 
         <Textarea

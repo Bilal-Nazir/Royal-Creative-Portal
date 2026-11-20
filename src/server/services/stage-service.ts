@@ -39,7 +39,13 @@ export async function tryAdvanceStageIfGated(project: Project): Promise<Project>
   const gates = await computeGateState(project);
   const result = canAdvance(project.stage, gates);
   if (result.allowed && result.nextStage) {
-    const updated: Project = { ...project, stage: result.nextStage };
+    const updated: Project = {
+      ...project,
+      stage: result.nextStage,
+      // A00's "Completed this month" metric needs a real completion
+      // timestamp — Project has no other record of when a stage was reached.
+      ...(result.nextStage === "handover" ? { handoverAt: new Date().toISOString() } : {}),
+    };
     await projectRepository.update(updated);
     if (result.nextStage === "launch") await activateScheduledInvoices(project.id);
     return updated;

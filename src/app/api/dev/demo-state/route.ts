@@ -18,12 +18,18 @@ const bodySchema = z.object({
   scopeChangeScenario: z.enum(["none", "pending", "accepted", "declined"]).optional(),
 });
 
-// No session check here — NODE_ENV === "development" below is the only gate.
-// This is a dev-only test/demo fixture control, not a user-facing action, and
-// requiring auth would make it awkward to call from tooling (e.g. Playwright
-// setup/teardown hooks) that has no browser session.
+// No session check here — the gate below is the only one. This is a
+// dev/test-only fixture control, not a user-facing action, and requiring
+// auth would make it awkward to call from tooling (e.g. Playwright setup/
+// teardown hooks) that has no browser session.
+//
+// Gate: NODE_ENV === "development" (local `next dev`), OR ALLOW_DEMO_STATE
+// explicitly set to "true" (set by playwright.config.ts's webServer so e2e
+// can run against a real production build via `next start` — closer to
+// production behaviour, fewer dev-mode-only timing flakes — while a real
+// production deployment without that env var stays 404'd).
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV !== "development") {
+  if (process.env.NODE_ENV !== "development" && process.env.ALLOW_DEMO_STATE !== "true") {
     return NextResponse.json({ ok: false, error: "Not found." }, { status: 404 });
   }
 

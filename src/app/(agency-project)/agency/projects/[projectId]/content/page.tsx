@@ -4,9 +4,9 @@ import { projectRepository } from "@/server/repositories/container";
 import { getContentChecklist, getContentSubmissions } from "@/server/services/content-service";
 import { getUploadedFilesMeta } from "@/server/services/file-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CONTENT_STATUS_LABEL, CONTENT_STATUS_TONE } from "@/components/project/content-status";
 import { ReviewActions } from "./review-actions";
@@ -27,9 +27,7 @@ export default async function AgencyContentReviewPage({ params }: { params: Prom
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

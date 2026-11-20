@@ -4,10 +4,10 @@ import { projectRepository } from "@/server/repositories/container";
 import { getBriefForProject } from "@/server/services/brief-service";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { BriefEditorForm } from "./brief-editor-form";
 
 export default async function BriefEditorPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -26,9 +26,7 @@ export default async function BriefEditorPage({ params }: { params: Promise<{ pr
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[200px]" />
         }
       />
       <PageHeader

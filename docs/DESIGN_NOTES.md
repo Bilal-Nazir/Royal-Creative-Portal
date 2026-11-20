@@ -703,3 +703,114 @@ states, "development" copy). Three more coarse scenario enums were added —
 doesn't exist yet, then sets its status directly) since reaching "final
 invoice unpaid" needs more than a stage flip. All follow the existing
 "wipe and rebuild" convention.
+
+# Design notes — Phase 3 (dashboard, notifications, messages, contacts, settings)
+
+- **A00 dashboard is fully real now.** The old hardcoded, "illustrative"
+  `AgencyOverview` is gone. Every metric, delta, and breakdown is computed
+  from real Project/Invoice/ProposalVersion records (`dashboard-service.ts`).
+  Month-vs-previous-month deltas use each record's own timestamp
+  (`Project.createdAt`, the new `Project.handoverAt`, `Invoice.paidAt`/
+  `dueDate`) — there's no stage-change history table, so snapshot metrics
+  (e.g. "Running with team") compare how many of today's matching projects
+  were *created* this month vs last, not a true historical snapshot delta.
+  Added `Project.handoverAt`, set by `tryAdvanceStageIfGated` on the
+  handover transition — nothing else recorded a real "completed" timestamp.
+- **Added 6 lightweight seed projects** (Priory Architects/Branding, Marlow
+  & Finch/SEO, Hart & Co/Digital marketing, Enigma Plates/Video production,
+  The Downsman and Gatwick Commercials/Website maintenance) so all 6
+  `PROJECT_TYPES` have real data on the dashboard, not just "Website
+  development". `Project.projectType` changed from a free string to the
+  `ProjectType` union; A04 gained a required "Project type" select.
+- **"Projects needing attention" is capped at 6 active projects**, not every
+  project the session can see — Figma's own mock is a filtered subset
+  ("Showing 3 of 24"), and with 9 seeded projects the uncapped grid would be
+  noisy. "View all projects" still links to the full kanban board.
+- **A14 notifications and the TopBar bell are additions on top of an
+  existing, UI-less domain.** `Notification`/`notifyAgency`/`notifyClient`
+  already existed (Phase 2b) with no reader; Phase 3 adds
+  `getNotificationsForSession`/`countUnreadNotifications`/
+  `markNotificationRead`/`markAllNotificationsRead` and swaps the
+  "Notifications" placeholder button for a real `<NotificationsBell>` on
+  every page that had one (40 files) via a scripted find/replace — mechanical
+  and reviewed, not hand-edited file by file.
+- **"Mark all as read" moved out of the TopBar action slot** into the page
+  body (next to the All/Unread filter tabs), unlike Figma's mock which puts
+  it beside the (redundant, self-referential) "Notifications" button in the
+  topbar. Avoided because TopBar's `action` prop is a single slot and
+  wiring a second button through it to a client component's handler would've
+  needed a global/window bridge — not worth it for a cosmetic placement match.
+- **A29/A15 messages inbox reuses the existing per-project `ProjectMessage`
+  repository and `ChatPanel`** rather than introducing a new message model.
+  Added `ConversationRead` (a per-project, per-user "last read" marker) since
+  a shared single `readAt` can't represent two independent readers of the
+  same thread. The inbox is one shared `MessagesInbox` client component used
+  by both the agency (`/agency/messages`) and client (`/messages`) pages,
+  parametrized by role-appropriate "open project" link and read-only state
+  for client viewers.
+- **Bug found and fixed during build:** the agency messages list initially
+  showed the client's own agency contact person (`Project.contactName`,
+  e.g. "Jerry Royal" — the lead shown *to* the client) as the "counterpart"
+  instead of the actual client contact. Fixed by looking the real contact up
+  through the client directory instead.
+- **Contacts pipeline (A17/A18/A28/A30) is an entirely new feature** — no
+  prior `Contact`/`ContactStage` domain existed. Stages are
+  agency-configurable (add/rename/reorder via up/down buttons, not drag —
+  simpler and keyboard-accessible; delete only when empty, enforced in
+  `contact-service.ts` not just hidden in the UI) and owner/admin-managed per
+  the brief. Moving a contact between stages is a per-card `<Select>` on the
+  board rather than drag-and-drop, for the same reason. Seeded contacts reuse
+  real seeded clients (Alex, Clara Ashworth, Tom Linden, Jane Hart, Sam
+  Okafor, Isla Finch, Robin Oduya) plus two pure prospects (Mina, Dev Patel)
+  and one lost lead (Noah Clarke) so every pipeline stage has at least one
+  card.
+- **A20 settings' "Team & access" shows the real 4 seeded agency users**
+  (Jerry/owner, Mara/admin, Jordan/member, Alex Morgan/member), not Figma's
+  illustrative 3-person mock (which also has Jordan as "Admin" — in the real
+  seed Jordan is a member). Changing real seeded roles to match an
+  illustrative mock would've been the wrong kind of fidelity. Role changes
+  are owner-only; invite/remove are owner-or-admin, per the brief.
+  "Invite" only creates the user record (random temp password, no email) —
+  there's no invite-email or first-login flow in this phase.
+- **Client contact options (A20) now actually drive the client sidebar.**
+  `ClientShell` became an async Server Component that reads `AgencySettings`
+  and passes `ownerName`/`phoneHref`/`whatsappHref` into `ContactOwner`,
+  falling back to its hardcoded defaults when a field is unset.
+- **A27 Stripe settings reuses `NotImplementedButton`** (secondary-styled,
+  not Figma's primary gradient) rather than a one-off disabled button —
+  it's the existing component for exactly this "not built yet" case.
+- **Client Messages/Files/Payments (no Figma frames) are built from
+  existing machinery, not new checkout/upload flows:**
+  - Messages is the same `MessagesInbox` component the agency side uses.
+  - Files lists every `UploadedFile` across the client's projects (added
+    `UploadedFileRepository.listByProjectId`) with downloads through the
+    existing authorized `/api/files/[fileId]` route — never a public URL.
+    Seed files have real bytes on disk (`file-store.ts`'s
+    `ensureSeedUploadedFileBytes`, since seeding can't go through
+    `StorageProvider.save()` at module-load time) so the download route has
+    something genuine to serve, not just metadata.
+  - Payments lists every invoice across the client's projects
+    (`listInvoicesForClient`) with a "Pay now" button that links to the
+    *existing* per-project deposit/final-payment checkout pages — no new
+    generic checkout was built.
+- **`CLIENT_DIRECTORY` (a hardcoded clientId→name map from Phase 2a) is
+  gone**, replaced by `getClientDirectory()` in `project-service.ts`, built
+  from real `ClientUser` + `Project` records. A client's company name only
+  exists once they have a Project (`Project.clientName`); a brand-new client
+  with no project yet falls back to their own contact name so they stay
+  selectable on A04 — there's nowhere else a "company name" is tracked
+  independent of a project.
+- **`UserRepository` moved from a static in-memory array to the file
+  store** (A20's invite/role-change/remove now mutate it) — same
+  cross-layer reasoning as every other mutable repository in this app.
+- **Playwright now runs against a production build** (`next build && next
+  start`, `workers: 2`) instead of `next dev` with a single worker, to cut
+  down on dev-mode compile-on-request timing flakiness. The dev-only
+  demo-state route's gate changed from `NODE_ENV === "development"` to also
+  accept an explicit `ALLOW_DEMO_STATE=true` env var, set only by
+  `playwright.config.ts`'s `webServer` — a real production deployment
+  without that var still 404s. Running two workers means two spec files can
+  run concurrently against the same shared file-store state; each file's own
+  tests are still `mode: "serial"`, but cross-file isolation during a
+  concurrent run is not guaranteed — flagged here rather than silently
+  assumed safe.

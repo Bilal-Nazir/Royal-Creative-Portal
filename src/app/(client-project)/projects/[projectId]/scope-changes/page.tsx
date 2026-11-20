@@ -5,9 +5,9 @@ import { getScopeChanges } from "@/server/services/scope-change-service";
 import { canAct } from "@/server/services/permissions";
 import { formatGBP, formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ListRow } from "@/components/ui/ListRow";
 import { ReadOnlyNotice } from "@/components/project/ReadOnlyNotice";
@@ -26,9 +26,7 @@ export default async function ScopeChangesPage({ params }: { params: Promise<{ p
   const scopeChanges = await getScopeChanges(projectId);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <Button variant="secondary" className="w-[180px]">
-      Notifications
-    </Button>
+    <NotificationsBell className="w-[180px]" />
   );
   const userCanAct = canAct(session);
   const pending = scopeChanges.filter((s) => s.status === "pending");

@@ -1,10 +1,11 @@
 import { uploadedFileRepository, projectRepository } from "../repositories/container";
 import { storageProvider } from "../storage/storage-provider";
 import { validateUpload, sanitizeFilename } from "../storage/upload-validation";
-import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
+import { assertClientCanActOnProject, assertAgencyCanManageProject, filterProjectsForAgencyUser } from "./permissions";
 import { ok, badRequest, notFound, forbidden, type ServiceResult } from "./result";
 import type { SessionPayload } from "../auth/session";
 import type { UploadedFile, UploadScope } from "../domain/upload";
+import type { Project } from "../domain/project";
 
 export interface UploadFileInput {
   projectId: string;
@@ -56,6 +57,24 @@ export async function uploadFile(session: SessionPayload, input: UploadFileInput
 export async function getUploadedFilesMeta(fileIds: string[]): Promise<UploadedFile[]> {
   const files = await Promise.all(fileIds.map((id) => uploadedFileRepository.findById(id)));
   return files.filter((f): f is UploadedFile => f !== null);
+}
+
+export interface FileWithProject {
+  file: UploadedFile;
+  project: Project;
+}
+
+/** Client/agency "Files" nav pages (Phase 3) — every file shared on a project this session can see, newest first. */
+export async function listFilesForSession(session: SessionPayload): Promise<FileWithProject[]> {
+  const all = await projectRepository.listAll();
+  const projects = session.role === "client" ? all.filter((p) => p.clientId === session.clientId) : filterProjectsForAgencyUser(session, all);
+
+  const rows: FileWithProject[] = [];
+  for (const project of projects) {
+    const files = await uploadedFileRepository.listByProjectId(project.id);
+    for (const file of files) rows.push({ file, project });
+  }
+  return rows.sort((a, b) => new Date(b.file.createdAt).getTime() - new Date(a.file.createdAt).getTime());
 }
 
 export interface DownloadableFile {

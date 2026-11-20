@@ -1,33 +1,43 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
+import { getConversationsForSession } from "@/server/services/message-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { MessagesInbox } from "@/components/notifications/MessagesInbox";
 
+/** No Figma frame for the client Messages nav page — built from the existing conversation service and ChatPanel (see DESIGN_NOTES). */
 export default async function MessagesPage() {
   const session = await getSessionFromCookies();
   if (!session || session.role !== "client") {
     redirect("/sign-in");
   }
 
+  const conversations = await getConversationsForSession(session);
+  const items = conversations.map((c) => ({
+    projectId: c.project.id,
+    projectName: c.project.name,
+    counterpartName: c.project.assigneeName,
+    lastMessageBody: c.lastMessage.body,
+    lastMessageAt: c.lastMessage.createdAt,
+    unreadCount: c.unreadCount,
+  }));
+
   return (
     <>
-      <TopBar
-        breadcrumb="Messages"
-        action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
-        }
-      />
-      <PageHeader eyebrow="CLIENT PORTAL" title="Messages" description="Project messaging is coming in a later phase." />
-      <Card className="p-6">
-        <p className="text-sm text-ink-secondary">
-          This page is a placeholder — it uses the same client shell as the rest of the portal so navigation stays
-          consistent while messaging is built out.
-        </p>
-      </Card>
+      <TopBar breadcrumb="Messages" action={<NotificationsBell className="w-[180px]" />} />
+      <PageHeader eyebrow="CLIENT PORTAL" title="Messages" description="Your project conversations with Royal Creative." />
+      {items.length === 0 ? (
+        <p className="text-sm text-ink-secondary">No conversations yet — they&apos;ll appear here once your project team messages you.</p>
+      ) : (
+        <MessagesInbox
+          conversations={items}
+          viewerUserId={session.userId}
+          readOnly={session.clientRole === "viewer"}
+          projectHrefPrefix="/projects/"
+          projectHrefSuffix="/brief"
+        />
+      )}
     </>
   );
 }

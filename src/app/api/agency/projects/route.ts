@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { createProject } from "@/server/services/project-service";
+import { PROJECT_TYPES } from "@/server/domain/project";
 
 const bodySchema = z.object({
   name: z.string().min(1),
   description: z.string().default(""),
+  projectType: z.enum(PROJECT_TYPES),
   clientId: z.string().min(1),
   assigneeId: z.string().min(1),
   dueDate: z.string().min(1),

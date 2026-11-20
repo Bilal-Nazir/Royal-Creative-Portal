@@ -6,9 +6,9 @@ import { pinLabel } from "@/server/domain/design";
 import { getProposalForProject } from "@/server/services/proposal-service";
 import { getAssignableAgencyUsers } from "@/server/services/project-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { RevisionTrackingForm } from "@/components/project/RevisionTrackingForm";
 import { PinStatusSelect } from "@/components/project/PinStatusSelect";
@@ -39,9 +39,7 @@ export default async function RevisionRoundDetailPage({ params }: { params: Prom
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

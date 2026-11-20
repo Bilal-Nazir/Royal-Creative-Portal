@@ -1,5 +1,16 @@
 import type { Stage } from "./stage";
 
+/** A04's project type selector (Phase 3) — also the grouping key for A00's "Active projects by type". */
+export const PROJECT_TYPES = [
+  "Website development",
+  "SEO",
+  "Digital marketing",
+  "Video production",
+  "Branding",
+  "Website maintenance",
+] as const;
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
 export type WaitingOn = "client" | "agency";
 
 export interface NextMilestone {
@@ -31,7 +42,9 @@ export interface Project {
   name: string;
   /** Set at creation (A04) — what the project is about. Shown read-only on A16. */
   description: string;
-  projectType: string;
+  projectType: ProjectType;
+  /** Set at creation — the source for A00's month-vs-previous-month comparisons (see dashboard-service.ts). */
+  createdAt: string;
   clientId: string;
   clientName: string;
   contactName: string;
@@ -50,6 +63,8 @@ export interface Project {
   /** A13 — agreed launch date and live URL, set by the agency when scheduling launch. */
   launchDate?: string;
   liveUrl?: string;
+  /** Set by tryAdvanceStageIfGated when the project reaches handover — the only real "completed" timestamp, used by A00's "Completed this month" metric. */
+  handoverAt?: string;
   forcedAdvances: ForcedAdvance[];
 }
 

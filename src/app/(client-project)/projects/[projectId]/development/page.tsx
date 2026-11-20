@@ -6,6 +6,7 @@ import { getProjectMessages } from "@/server/services/message-service";
 import { canAct } from "@/server/services/permissions";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -33,9 +34,7 @@ export default async function DevelopmentReviewPage({ params }: { params: Promis
   const current = await getCurrentDesignVersion(projectId, "development");
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <Button variant="secondary" className="w-[180px]">
-      Notifications
-    </Button>
+    <NotificationsBell className="w-[180px]" />
   );
   const userCanAct = canAct(session);
 

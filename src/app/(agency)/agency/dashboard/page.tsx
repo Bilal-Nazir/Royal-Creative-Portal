@@ -6,6 +6,7 @@ import { STAGE_LABELS, STAGE_ORDER, completedStageCount, progressFraction } from
 import type { Project } from "@/server/domain/project";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -62,17 +63,19 @@ export default async function AgencyDashboardPage() {
     redirect("/sign-in");
   }
 
-  const [projects, overview] = await Promise.all([getProjectsForAgencyUser(session), getAgencyOverview()]);
-  const activeProjectsTotal = overview.metricCards.find((m) => m.label === "Active projects")?.value ?? "0";
+  const [allProjects, overview] = await Promise.all([getProjectsForAgencyUser(session), getAgencyOverview()]);
+  // "Needing attention" shows active projects only (handover is done), capped
+  // at 6 — Figma's own mock is a filtered subset ("Showing 3 of 24"), not the
+  // full project list; "View all projects" links to the full kanban board.
+  const activeProjects = allProjects.filter((p) => p.stage !== "handover");
+  const projects = activeProjects.slice(0, 6);
 
   return (
     <>
       <TopBar
         breadcrumb="Royal Creative / Dashboard"
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[200px]" />
         }
       />
 
@@ -81,7 +84,7 @@ export default async function AgencyDashboardPage() {
         title="Agency dashboard"
         description={overview.periodLabel}
         action={
-          <Button variant="primary" className="w-[220px]">
+          <Button href="/agency/projects/new" variant="primary" className="w-[220px]">
             Create project
           </Button>
         }
@@ -110,7 +113,9 @@ export default async function AgencyDashboardPage() {
             {overview.activeProjectsByType.map((type) => (
               <div key={type.label} className="flex items-center justify-between text-[13px] font-medium">
                 <span className="text-ink-secondary">{type.label}</span>
-                <span className="text-ink">{type.count} projects</span>
+                <span className="text-ink">
+                  {type.count} project{type.count === 1 ? "" : "s"}
+                </span>
               </div>
             ))}
           </div>
@@ -141,7 +146,7 @@ export default async function AgencyDashboardPage() {
               </div>
             ))}
           </div>
-          <Button variant="primary" className="mt-3.5 w-full">
+          <Button href="/agency/payments" variant="primary" className="mt-3.5 w-full">
             Open payments
           </Button>
         </Card>
@@ -149,8 +154,8 @@ export default async function AgencyDashboardPage() {
 
       <h2 className="font-heading text-xl font-semibold text-ink">Projects needing attention</h2>
       <p className="text-sm text-ink-secondary">
-        Showing {projects.length} of {activeProjectsTotal} active projects. Open Projects to filter by stage, status or
-        assignee.
+        Showing {projects.length} of {activeProjects.length} active projects. Open Projects to filter by stage, status
+        or assignee.
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

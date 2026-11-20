@@ -1,33 +1,33 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
+import { getAgencySettings, listTeam } from "@/server/services/settings-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { AgencySettingsForm } from "@/components/settings/AgencySettingsForm";
+import { TeamManager } from "@/components/settings/TeamManager";
 
 export default async function AgencySettingsPage() {
   const session = await getSessionFromCookies();
   if (!session || session.role !== "agency") {
     redirect("/sign-in");
   }
+  if (session.agencyRole !== "owner" && session.agencyRole !== "admin") {
+    redirect("/agency/dashboard");
+  }
+
+  const [settings, team] = await Promise.all([getAgencySettings(), listTeam()]);
 
   return (
     <>
-      <TopBar
-        breadcrumb="Royal Creative / Settings"
-        action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
-        }
+      <TopBar breadcrumb="Royal Creative / Settings" action={<NotificationsBell className="w-[200px]" />} />
+      <PageHeader
+        eyebrow="AGENCY WORKSPACE"
+        title="Settings"
+        description="Agency details, owner contact, team access and alerts."
       />
-      <PageHeader eyebrow="AGENCY WORKSPACE" title="Settings" description="Workspace settings are coming in a later phase." />
-      <Card className="p-6">
-        <p className="text-sm text-ink-secondary">
-          This page is a placeholder — it uses the same agency shell as the rest of the workspace so navigation stays
-          consistent while settings are built out.
-        </p>
-      </Card>
+      <AgencySettingsForm initialSettings={settings} />
+      <TeamManager initialTeam={team} currentUserId={session.userId} isOwner={session.agencyRole === "owner"} />
     </>
   );
 }

@@ -3,8 +3,8 @@ import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
 import { getProjectMessages } from "@/server/services/message-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { ChatPanel } from "@/components/project/ChatPanel";
 
 /** Agency side of R10's per-project chat — the client-facing screen, mirrored so the agency has somewhere to reply from. */
@@ -23,9 +23,7 @@ export default async function AgencyProjectConversationPage({ params }: { params
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`} title="Project conversation" description="Chat with the client without leaving the project." />

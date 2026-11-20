@@ -4,6 +4,7 @@ import { NavItem } from "../ui/NavItem";
 import { ContactOwner } from "../ui/ContactOwner";
 import { MobileNav } from "./MobileNav";
 import { ProjectJourney } from "./ProjectJourney";
+import { getAgencySettings } from "@/server/services/settings-service";
 import type { Stage } from "@/server/domain/stage";
 
 const CLIENT_NAV_ITEMS = [
@@ -20,7 +21,12 @@ export interface ClientShellProps {
   journeyProjectId?: string;
 }
 
-export function ClientShell({ children, journeyStage, journeyProjectId }: ClientShellProps) {
+/** A20's owner contact fields drive this sidebar's "Contact owner" icons (Phase 3) — falls back to ContactOwner's own defaults if unset. */
+export async function ClientShell({ children, journeyStage, journeyProjectId }: ClientShellProps) {
+  const settings = await getAgencySettings();
+  const phoneHref = settings.ownerPhone ? `tel:${settings.ownerPhone.replace(/\s+/g, "")}` : undefined;
+  const whatsappHref = settings.ownerWhatsapp ? `https://wa.me/${settings.ownerWhatsapp.replace(/[^\d]/g, "")}` : undefined;
+
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <MobileNav
@@ -49,7 +55,7 @@ export function ClientShell({ children, journeyStage, journeyProjectId }: Client
           Your project, in one place.
         </p>
         <div className="flex-1" />
-        <ContactOwner variant="compact" />
+        <ContactOwner variant="compact" ownerName={settings.ownerName} phoneHref={phoneHref} whatsappHref={whatsappHref} />
       </aside>
 
       <main className="flex-1 p-5 sm:p-8 lg:p-[32px]">

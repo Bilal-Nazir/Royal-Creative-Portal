@@ -1,9 +1,8 @@
 import {
-  InMemoryUserRepository,
+  FileStoreUserRepository,
   FileStoreProjectRepository,
   InMemoryActivityRepository,
   InMemoryAttentionRepository,
-  InMemoryAgencyStatsRepository,
   FileStoreBriefRepository,
   FileStoreProposalRepository,
   FileStoreAcceptanceRecordRepository,
@@ -16,10 +15,15 @@ import {
   FileStoreDesignPinCommentRepository,
   FileStoreRevisionRoundRepository,
   FileStoreProjectMessageRepository,
+  FileStoreConversationReadRepository,
   FileStoreNotificationRepository,
   FileStoreUploadedFileRepository,
   FileStoreScopeChangeRepository,
   FileStoreHandoverResourceRepository,
+  FileStoreContactStageRepository,
+  FileStoreContactRepository,
+  FileStoreContactActivityRepository,
+  FileStoreAgencySettingsRepository,
 } from "./in-memory/in-memory-repositories";
 
 /**
@@ -33,11 +37,10 @@ import {
  * page Server Components, which Next.js does not share module state
  * between. Those four are never mutated, so a plain in-memory array is fine.
  */
-export const userRepository = new InMemoryUserRepository();
+export const userRepository = new FileStoreUserRepository();
 export const projectRepository = new FileStoreProjectRepository();
 export const activityRepository = new InMemoryActivityRepository();
 export const attentionRepository = new InMemoryAttentionRepository();
-export const agencyStatsRepository = new InMemoryAgencyStatsRepository();
 export const briefRepository = new FileStoreBriefRepository();
 export const proposalRepository = new FileStoreProposalRepository();
 export const acceptanceRecordRepository = new FileStoreAcceptanceRecordRepository();
@@ -50,7 +53,12 @@ export const designVersionRepository = new FileStoreDesignVersionRepository();
 export const designPinCommentRepository = new FileStoreDesignPinCommentRepository();
 export const revisionRoundRepository = new FileStoreRevisionRoundRepository();
 export const projectMessageRepository = new FileStoreProjectMessageRepository();
+export const conversationReadRepository = new FileStoreConversationReadRepository();
 export const notificationRepository = new FileStoreNotificationRepository();
 export const uploadedFileRepository = new FileStoreUploadedFileRepository();
 export const scopeChangeRepository = new FileStoreScopeChangeRepository();
 export const handoverResourceRepository = new FileStoreHandoverResourceRepository();
+export const contactStageRepository = new FileStoreContactStageRepository();
+export const contactRepository = new FileStoreContactRepository();
+export const contactActivityRepository = new FileStoreContactActivityRepository();
+export const agencySettingsRepository = new FileStoreAgencySettingsRepository();

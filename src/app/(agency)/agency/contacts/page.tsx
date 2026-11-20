@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
+import { listContacts, listStages } from "@/server/services/contact-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ContactsBoard } from "@/components/project/ContactsBoard";
 
 export default async function AgencyContactsPage() {
   const session = await getSessionFromCookies();
@@ -11,23 +13,22 @@ export default async function AgencyContactsPage() {
     redirect("/sign-in");
   }
 
+  const [contacts, stages] = await Promise.all([listContacts(), listStages()]);
+
   return (
     <>
-      <TopBar
-        breadcrumb="Royal Creative / Contacts"
+      <TopBar breadcrumb="Royal Creative / Contacts" action={<NotificationsBell className="w-[200px]" />} />
+      <PageHeader
+        eyebrow="AGENCY WORKSPACE"
+        title="Contacts"
+        description="Track enquiries from first contact to a decision."
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
+          <Button href="/agency/contacts/new" variant="primary" className="w-[180px]">
+            Add contact
           </Button>
         }
       />
-      <PageHeader eyebrow="AGENCY WORKSPACE" title="Contacts" description="Client and lead contacts are coming in a later phase." />
-      <Card className="p-6">
-        <p className="text-sm text-ink-secondary">
-          This page is a placeholder — it uses the same agency shell as the rest of the workspace so navigation stays
-          consistent while contacts are built out.
-        </p>
-      </Card>
+      <ContactsBoard contacts={contacts} stages={stages} />
     </>
   );
 }

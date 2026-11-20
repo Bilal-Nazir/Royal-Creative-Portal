@@ -5,6 +5,7 @@ import { getProposalForProject, getAcceptanceRecords } from "@/server/services/p
 import { canAct } from "@/server/services/permissions";
 import { formatGBP, formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -25,9 +26,7 @@ export default async function ProposalReviewPage({ params }: { params: Promise<{
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <Button variant="secondary" className="w-[180px]">
-      Notifications
-    </Button>
+    <NotificationsBell className="w-[180px]" />
   );
   const scheduleText = proposal.paymentSchedule.map((item) => `${formatGBP(item.amount)} ${item.label.toLowerCase()}`).join(" · ");
 

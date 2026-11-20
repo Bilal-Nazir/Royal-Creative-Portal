@@ -4,8 +4,8 @@ import { projectRepository } from "@/server/repositories/container";
 import { getProjectMessages } from "@/server/services/message-service";
 import { canAct } from "@/server/services/permissions";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { ChatPanel } from "@/components/project/ChatPanel";
 
 export default async function ProjectConversationPage({
@@ -30,9 +30,7 @@ export default async function ProjectConversationPage({
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

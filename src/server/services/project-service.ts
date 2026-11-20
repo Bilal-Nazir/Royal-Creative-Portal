@@ -2,9 +2,8 @@ import { projectRepository, activityRepository, attentionRepository, userReposit
 import type { SessionPayload } from "../auth/session";
 import { filterProjectsForAgencyUser } from "./permissions";
 import { forbidden, ok, type ServiceResult } from "./result";
-import { isAgencyUser } from "../domain/user";
-import type { Project } from "../domain/project";
-import { CLIENT_DIRECTORY, type ClientDirectoryEntry } from "../repositories/in-memory/seed-data-phase2a";
+import { isAgencyUser, isClientUser, type ClientUser } from "../domain/user";
+import type { Project, ProjectType } from "../domain/project";
 import { SEED_USERS } from "../repositories/in-memory/seed-data";
 
 export async function getClientDashboardData(clientId: string) {
@@ -26,14 +25,44 @@ export function getAssignableAgencyUsers(): Array<{ id: string; name: string }> 
   return SEED_USERS.filter(isAgencyUser).map((u) => ({ id: u.id, name: u.name }));
 }
 
-/** For A04's client/contact selector — see DESIGN_NOTES (missing in Figma). */
-export function getClientDirectory(): ClientDirectoryEntry[] {
-  return CLIENT_DIRECTORY;
+export interface ClientDirectoryEntry {
+  clientId: string;
+  clientName: string;
+  contactName: string;
+}
+
+/**
+ * For A04's client/contact selector — see DESIGN_NOTES (missing in Figma).
+ * Built from real ClientUser + Project records, not a hardcoded map.
+ * clientName (the company) only exists on a Project once one has been
+ * created — a client with no project yet falls back to their own contact
+ * name, so they're still selectable when creating their first project.
+ * When a client has more than one user, the participant (not a viewer) is
+ * preferred as the directory's contact.
+ */
+export async function getClientDirectory(): Promise<ClientDirectoryEntry[]> {
+  const [users, projects] = await Promise.all([userRepository.listClientUsers(), projectRepository.listAll()]);
+  const clientNameByClientId = new Map(projects.map((p) => [p.clientId, p.clientName]));
+
+  const contactByClientId = new Map<string, ClientUser>();
+  for (const user of users.filter(isClientUser)) {
+    const existing = contactByClientId.get(user.clientId);
+    if (!existing || (existing.clientRole !== "participant" && user.clientRole === "participant")) {
+      contactByClientId.set(user.clientId, user);
+    }
+  }
+
+  return Array.from(contactByClientId.entries()).map(([clientId, user]) => ({
+    clientId,
+    clientName: clientNameByClientId.get(clientId) ?? user.name,
+    contactName: user.name,
+  }));
 }
 
 export interface CreateProjectInput {
   name: string;
   description: string;
+  projectType: ProjectType;
   clientId: string;
   assigneeId: string;
   dueDate: string;
@@ -45,7 +74,8 @@ export async function createProject(
 ): Promise<ServiceResult<Project>> {
   if (session.role !== "agency") return forbidden("Only agency staff can create a project.");
 
-  const client = CLIENT_DIRECTORY.find((c) => c.clientId === input.clientId);
+  const directory = await getClientDirectory();
+  const client = directory.find((c) => c.clientId === input.clientId);
   if (!client) return forbidden("Unknown client.");
 
   const assignee = await userRepository.findById(input.assigneeId);
@@ -55,7 +85,8 @@ export async function createProject(
     id: `proj-${input.clientId}-${Date.now().toString(36)}`,
     name: input.name,
     description: input.description,
-    projectType: "Website development",
+    projectType: input.projectType,
+    createdAt: new Date().toISOString(),
     clientId: input.clientId,
     clientName: client.clientName,
     contactName: session.name,

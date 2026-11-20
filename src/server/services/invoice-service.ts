@@ -323,6 +323,12 @@ export async function listAllInvoicesWithProject(): Promise<InvoiceWithProject[]
     .sort((a, b) => new Date(a.invoice.dueDate).getTime() - new Date(b.invoice.dueDate).getTime());
 }
 
+/** Client Payments nav page (Phase 3, no Figma frame) — every invoice on this client's own projects only. */
+export async function listInvoicesForClient(clientId: string): Promise<InvoiceWithProject[]> {
+  const rows = await listAllInvoicesWithProject();
+  return rows.filter((row) => row.project.clientId === clientId);
+}
+
 export interface PaymentMetrics {
   collected: number;
   outstanding: number;

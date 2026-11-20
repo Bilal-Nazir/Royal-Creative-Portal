@@ -3,6 +3,7 @@ import { getSessionFromCookies } from "@/server/auth/cookies";
 import { listAllInvoicesWithProject, computePaymentMetrics } from "@/server/services/invoice-service";
 import { formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -23,9 +24,7 @@ export default async function AgencyPaymentsPage() {
       <TopBar
         breadcrumb="Royal Creative / Payments"
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[200px]" />
         }
       />
       <PageHeader
@@ -33,7 +32,7 @@ export default async function AgencyPaymentsPage() {
         title="Payments"
         description="View invoices and record payments received outside Stripe."
         action={
-          <Button variant="secondary" disabled className="w-[220px]" title="Stripe isn't connected in this demo">
+          <Button href="/agency/payments/stripe" variant="secondary" className="w-[220px]">
             Stripe settings
           </Button>
         }

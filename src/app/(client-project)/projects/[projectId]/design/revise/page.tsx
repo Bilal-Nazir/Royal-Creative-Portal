@@ -3,8 +3,8 @@ import { getSessionFromCookies } from "@/server/auth/cookies";
 import { projectRepository } from "@/server/repositories/container";
 import { getCurrentDesignVersion, getPinCommentsForVersion, getRevisionRounds } from "@/server/services/design-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { RevisionRoundSubmitPanel } from "@/components/project/RevisionRoundSubmitPanel";
 
 export default async function SubmitRevisionRoundPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -27,9 +27,7 @@ export default async function SubmitRevisionRoundPage({ params }: { params: Prom
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
       <PageHeader

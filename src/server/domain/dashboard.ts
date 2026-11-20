@@ -32,11 +32,9 @@ export interface CommercialMetric {
 }
 
 /**
- * Agency-wide figures shown on the A00 dashboard. In Figma these are
- * explicitly labelled "Illustrative sample data" and don't need to
- * reconcile with the handful of seeded projects in the in-memory
- * repository — a real implementation would aggregate this from the
- * full project set once there's a database behind it.
+ * Agency-wide figures shown on the A00 dashboard. Phase 3: computed live
+ * from real Project/Invoice/ProposalVersion records by dashboard-service.ts
+ * — no longer the illustrative hardcoded data Figma's own mock used.
  */
 export interface AgencyOverview {
   periodLabel: string;

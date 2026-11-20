@@ -2,24 +2,22 @@ import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
 import { getAssignableAgencyUsers, getClientDirectory } from "@/server/services/project-service";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { NewProjectForm } from "./new-project-form";
 
 export default async function NewProjectPage() {
   const session = await getSessionFromCookies();
   if (!session || session.role !== "agency") redirect("/sign-in");
 
-  const [assignees, clients] = [getAssignableAgencyUsers(), getClientDirectory()];
+  const [assignees, clients] = [getAssignableAgencyUsers(), await getClientDirectory()];
 
   return (
     <>
       <TopBar
         breadcrumb="Royal Creative / Projects / Create project"
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[200px]" />
         }
       />
       <PageHeader title="Create a project" />

@@ -3,7 +3,6 @@ import type {
   ProjectRepository,
   ActivityRepository,
   AttentionRepository,
-  AgencyStatsRepository,
   BriefRepository,
   ProposalRepository,
   AcceptanceRecordRepository,
@@ -16,14 +15,18 @@ import type {
   DesignPinCommentRepository,
   RevisionRoundRepository,
   ProjectMessageRepository,
+  ConversationReadRepository,
   NotificationRepository,
   UploadedFileRepository,
   ScopeChangeRepository,
   HandoverResourceRepository,
+  ContactStageRepository,
+  ContactRepository,
+  ContactActivityRepository,
+  AgencySettingsRepository,
 } from "../interfaces";
 import type { User } from "../../domain/user";
 import type { Project, ActivityItem, AttentionTask } from "../../domain/project";
-import type { AgencyOverview } from "../../domain/dashboard";
 import type { BriefVersion } from "../../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../../domain/proposal";
 import type { Invoice } from "../../domain/invoice";
@@ -31,24 +34,58 @@ import type { Comment, CommentTargetType } from "../../domain/comment";
 import type { ContentChecklistItem, ContentSubmission } from "../../domain/content";
 import type { ShareLink } from "../../domain/share-link";
 import type { DesignVersion, DesignPinComment, RevisionRound, ReviewKind } from "../../domain/design";
-import type { ProjectMessage } from "../../domain/message";
+import type { ProjectMessage, ConversationRead } from "../../domain/message";
 import type { Notification } from "../../domain/notification";
 import type { UploadedFile } from "../../domain/upload";
 import type { ScopeChange } from "../../domain/scope-change";
 import type { HandoverResource } from "../../domain/handover-resource";
-import { SEED_USERS, SEED_PROJECTS, SEED_ACTIVITIES, SEED_ATTENTION_TASKS, SEED_AGENCY_OVERVIEW } from "./seed-data";
+import type { Contact, ContactStage, ContactActivity } from "../../domain/contact";
+import type { AgencySettings } from "../../domain/settings";
+import { SEED_PROJECTS, SEED_ACTIVITIES, SEED_ATTENTION_TASKS } from "./seed-data";
 import { readStore, writeStore } from "../../storage/file-store";
 
-export class InMemoryUserRepository implements UserRepository {
-  constructor(private readonly users: User[] = SEED_USERS) {}
-
+/**
+ * File-backed (Phase 3): A20's team management (invite/change role/remove)
+ * mutates users via a route handler, read back by page Server Components —
+ * the same cross-layer boundary as everywhere else in this store. Previously
+ * a static in-memory array since nothing mutated it.
+ */
+export class FileStoreUserRepository implements UserRepository {
   async findByEmail(email: string): Promise<User | null> {
     const normalized = email.trim().toLowerCase();
-    return this.users.find((u) => u.email.toLowerCase() === normalized) ?? null;
+    return readStore().users.find((u) => u.email.toLowerCase() === normalized) ?? null;
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.users.find((u) => u.id === id) ?? null;
+    return readStore().users.find((u) => u.id === id) ?? null;
+  }
+
+  async listAgencyUsers(): Promise<User[]> {
+    return readStore().users.filter((u) => u.role === "agency");
+  }
+
+  async listClientUsers(): Promise<User[]> {
+    return readStore().users.filter((u) => u.role === "client");
+  }
+
+  async create(user: User): Promise<void> {
+    const store = readStore();
+    store.users.push(user);
+    writeStore(store);
+  }
+
+  async update(user: User): Promise<void> {
+    const store = readStore();
+    const index = store.users.findIndex((u) => u.id === user.id);
+    if (index === -1) return;
+    store.users[index] = user;
+    writeStore(store);
+  }
+
+  async remove(id: string): Promise<void> {
+    const store = readStore();
+    store.users = store.users.filter((u) => u.id !== id);
+    writeStore(store);
   }
 }
 
@@ -117,14 +154,6 @@ export class InMemoryAttentionRepository implements AttentionRepository {
   }
 }
 
-export class InMemoryAgencyStatsRepository implements AgencyStatsRepository {
-  constructor(private readonly overview: AgencyOverview = SEED_AGENCY_OVERVIEW) {}
-
-  async getOverview(): Promise<AgencyOverview> {
-    return this.overview;
-  }
-}
-
 export class FileStoreBriefRepository implements BriefRepository {
   async getCurrentVersion(projectId: string): Promise<BriefVersion | null> {
     const versions = readStore().briefVersions.filter((v) => v.projectId === projectId);
@@ -152,6 +181,10 @@ export class FileStoreProposalRepository implements ProposalRepository {
     return readStore()
       .proposalVersions.filter((v) => v.projectId === projectId)
       .sort((a, b) => a.versionNumber - b.versionNumber);
+  }
+
+  async listAll(): Promise<ProposalVersion[]> {
+    return readStore().proposalVersions;
   }
 
   async getCurrentVersion(projectId: string): Promise<ProposalVersion | null> {
@@ -374,9 +407,30 @@ export class FileStoreProjectMessageRepository implements ProjectMessageReposito
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
 
+  async listAll(): Promise<ProjectMessage[]> {
+    return readStore().projectMessages;
+  }
+
   async create(message: ProjectMessage): Promise<void> {
     const store = readStore();
     store.projectMessages.push(message);
+    writeStore(store);
+  }
+}
+
+export class FileStoreConversationReadRepository implements ConversationReadRepository {
+  async find(projectId: string, userId: string): Promise<ConversationRead | null> {
+    return readStore().conversationReads.find((r) => r.projectId === projectId && r.userId === userId) ?? null;
+  }
+
+  async upsert(read: ConversationRead): Promise<void> {
+    const store = readStore();
+    const index = store.conversationReads.findIndex((r) => r.projectId === read.projectId && r.userId === read.userId);
+    if (index === -1) {
+      store.conversationReads.push(read);
+    } else {
+      store.conversationReads[index] = read;
+    }
     writeStore(store);
   }
 }
@@ -391,11 +445,113 @@ export class FileStoreNotificationRepository implements NotificationRepository {
   async listByProjectId(projectId: string): Promise<Notification[]> {
     return readStore().notifications.filter((n) => n.projectId === projectId);
   }
+
+  async listAll(): Promise<Notification[]> {
+    return readStore().notifications;
+  }
+
+  async findById(id: string): Promise<Notification | null> {
+    return readStore().notifications.find((n) => n.id === id) ?? null;
+  }
+
+  async update(notification: Notification): Promise<void> {
+    const store = readStore();
+    const index = store.notifications.findIndex((n) => n.id === notification.id);
+    if (index === -1) return;
+    store.notifications[index] = notification;
+    writeStore(store);
+  }
+}
+
+export class FileStoreContactStageRepository implements ContactStageRepository {
+  async listAll(): Promise<ContactStage[]> {
+    return readStore().contactStages.slice().sort((a, b) => a.order - b.order);
+  }
+
+  async findById(id: string): Promise<ContactStage | null> {
+    return readStore().contactStages.find((s) => s.id === id) ?? null;
+  }
+
+  async create(stage: ContactStage): Promise<void> {
+    const store = readStore();
+    store.contactStages.push(stage);
+    writeStore(store);
+  }
+
+  async update(stage: ContactStage): Promise<void> {
+    const store = readStore();
+    const index = store.contactStages.findIndex((s) => s.id === stage.id);
+    if (index === -1) return;
+    store.contactStages[index] = stage;
+    writeStore(store);
+  }
+
+  async delete(id: string): Promise<void> {
+    const store = readStore();
+    store.contactStages = store.contactStages.filter((s) => s.id !== id);
+    writeStore(store);
+  }
+}
+
+export class FileStoreContactRepository implements ContactRepository {
+  async listAll(): Promise<Contact[]> {
+    return readStore().contacts;
+  }
+
+  async findById(id: string): Promise<Contact | null> {
+    return readStore().contacts.find((c) => c.id === id) ?? null;
+  }
+
+  async create(contact: Contact): Promise<void> {
+    const store = readStore();
+    store.contacts.push(contact);
+    writeStore(store);
+  }
+
+  async update(contact: Contact): Promise<void> {
+    const store = readStore();
+    const index = store.contacts.findIndex((c) => c.id === contact.id);
+    if (index === -1) return;
+    store.contacts[index] = contact;
+    writeStore(store);
+  }
+}
+
+export class FileStoreContactActivityRepository implements ContactActivityRepository {
+  async listByContactId(contactId: string): Promise<ContactActivity[]> {
+    return readStore()
+      .contactActivities.filter((a) => a.contactId === contactId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async create(activity: ContactActivity): Promise<void> {
+    const store = readStore();
+    store.contactActivities.push(activity);
+    writeStore(store);
+  }
+}
+
+export class FileStoreAgencySettingsRepository implements AgencySettingsRepository {
+  async get(): Promise<AgencySettings> {
+    return readStore().agencySettings;
+  }
+
+  async update(settings: AgencySettings): Promise<void> {
+    const store = readStore();
+    store.agencySettings = settings;
+    writeStore(store);
+  }
 }
 
 export class FileStoreUploadedFileRepository implements UploadedFileRepository {
   async findById(id: string): Promise<UploadedFile | null> {
     return readStore().uploadedFiles.find((f) => f.id === id) ?? null;
+  }
+
+  async listByProjectId(projectId: string): Promise<UploadedFile[]> {
+    return readStore()
+      .uploadedFiles.filter((f) => f.projectId === projectId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async create(file: UploadedFile): Promise<void> {

@@ -5,6 +5,7 @@ import { canAct } from "@/server/services/permissions";
 import { STAGE_LABELS } from "@/server/domain/stage";
 import { formatDate } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -27,9 +28,7 @@ export default async function ClientDashboardPage() {
       <TopBar
         breadcrumb="My projects"
         action={
-          <Button variant="secondary" className="w-[180px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[180px]" />
         }
       />
 

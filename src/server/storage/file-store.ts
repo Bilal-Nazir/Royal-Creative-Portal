@@ -9,12 +9,15 @@ import type { Comment } from "../domain/comment";
 import type { ShareLink } from "../domain/share-link";
 import type { ContentChecklistItem, ContentSubmission } from "../domain/content";
 import type { DesignVersion, DesignPinComment, RevisionRound } from "../domain/design";
-import type { ProjectMessage } from "../domain/message";
+import type { ProjectMessage, ConversationRead } from "../domain/message";
 import type { Notification } from "../domain/notification";
 import type { UploadedFile } from "../domain/upload";
 import type { ScopeChange } from "../domain/scope-change";
 import type { HandoverResource } from "../domain/handover-resource";
-import { SEED_PROJECTS } from "../repositories/in-memory/seed-data";
+import type { User } from "../domain/user";
+import type { Contact, ContactStage, ContactActivity } from "../domain/contact";
+import type { AgencySettings } from "../domain/settings";
+import { SEED_PROJECTS, SEED_USERS } from "../repositories/in-memory/seed-data";
 import {
   SEED_BRIEF_VERSIONS,
   SEED_PROPOSAL_VERSIONS,
@@ -30,6 +33,11 @@ import {
   SEED_PROJECT_MESSAGES,
   SEED_NOTIFICATIONS,
   SEED_UPLOADED_FILES,
+  SEED_CONVERSATION_READS,
+  SEED_CONTACT_STAGES,
+  SEED_CONTACTS,
+  SEED_CONTACT_ACTIVITIES,
+  SEED_AGENCY_SETTINGS,
 } from "../repositories/in-memory/seed-data-phase2a";
 
 export interface StoreShape {
@@ -50,11 +58,36 @@ export interface StoreShape {
   uploadedFiles: UploadedFile[];
   scopeChanges: ScopeChange[];
   handoverResources: HandoverResource[];
+  users: User[];
+  conversationReads: ConversationRead[];
+  contactStages: ContactStage[];
+  contacts: Contact[];
+  contactActivities: ContactActivity[];
+  agencySettings: AgencySettings;
 }
 
 const STORE_PATH = join(process.cwd(), ".data", "phase2a-store.json");
+const UPLOAD_DIR = join(process.cwd(), ".data", "uploads");
+
+/**
+ * SEED_UPLOADED_FILES has metadata (name, scope, size) but no real bytes on
+ * disk — unlike a route-handler upload, seeding can't go through
+ * StorageProvider.save() at module-load time. Writes each seed file's own
+ * `storageId` directly so the demo's download route (which only reads
+ * bytes, never trusts metadata alone) has something real to serve.
+ */
+function ensureSeedUploadedFileBytes(): void {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
+  for (const file of SEED_UPLOADED_FILES) {
+    const path = join(UPLOAD_DIR, file.storageId);
+    if (!existsSync(path)) {
+      writeFileSync(path, `${file.originalName}\n\nSeed demo content for Phase 3 — not a real upload.\n`, "utf-8");
+    }
+  }
+}
 
 function seedStore(): StoreShape {
+  ensureSeedUploadedFileBytes();
   // Deep-cloned so the file store never shares array/object references with
   // the seed constants — mutating the store must not mutate the seed data.
   return JSON.parse(
@@ -76,6 +109,12 @@ function seedStore(): StoreShape {
       uploadedFiles: SEED_UPLOADED_FILES,
       scopeChanges: [],
       handoverResources: [],
+      users: SEED_USERS,
+      conversationReads: SEED_CONVERSATION_READS,
+      contactStages: SEED_CONTACT_STAGES,
+      contacts: SEED_CONTACTS,
+      contactActivities: SEED_CONTACT_ACTIVITIES,
+      agencySettings: SEED_AGENCY_SETTINGS,
     }),
   );
 }

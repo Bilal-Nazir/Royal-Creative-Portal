@@ -4,9 +4,9 @@ import { projectRepository } from "@/server/repositories/container";
 import { getDepositInvoice } from "@/server/services/invoice-service";
 import { formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { MarkPaidActions } from "./mark-paid-actions";
 
 export default async function UpdatePaymentStatusPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -28,9 +28,7 @@ export default async function UpdatePaymentStatusPage({ params }: { params: Prom
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <Button variant="secondary" className="w-[200px]">
-            Notifications
-          </Button>
+          <NotificationsBell className="w-[200px]" />
         }
       />
       <PageHeader

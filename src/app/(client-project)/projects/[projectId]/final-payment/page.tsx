@@ -5,6 +5,7 @@ import { getFinalInvoice } from "@/server/services/invoice-service";
 import { canAct } from "@/server/services/permissions";
 import { formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
+import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -29,9 +30,7 @@ export default async function FinalPaymentPage({ params }: { params: Promise<{ p
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <Button variant="secondary" className="w-[180px]">
-      Notifications
-    </Button>
+    <NotificationsBell className="w-[180px]" />
   );
 
   if (invoice.status === "paid") {
