@@ -53,8 +53,12 @@ function loadEnv(): Env {
   if (env.PAYMENT_DRIVER === "mock" && env.NODE_ENV === "production") {
     throw new Error('PAYMENT_DRIVER=mock is not allowed when NODE_ENV=production. Set PAYMENT_DRIVER=bank (or add Stripe later).');
   }
-  if (env.REPOSITORY_DRIVER === "dynamo" && (!env.AWS_REGION || !env.DYNAMO_TABLE_PREFIX)) {
-    throw new Error("REPOSITORY_DRIVER=dynamo requires AWS_REGION and DYNAMO_TABLE_PREFIX.");
+  // AWS_REGION is deliberately NOT required here even though it's used by local scripts (table
+  // creation/seeding) — in a real deployment (e.g. AWS Amplify Hosting), "AWS_" is a reserved env
+  // var prefix the platform won't let you set manually, and the AWS SDK resolves the region on its
+  // own from the Lambda/compute runtime regardless of whether this app's own config captured it.
+  if (env.REPOSITORY_DRIVER === "dynamo" && !env.DYNAMO_TABLE_PREFIX) {
+    throw new Error("REPOSITORY_DRIVER=dynamo requires DYNAMO_TABLE_PREFIX.");
   }
   if (env.STORAGE_DRIVER === "s3" && (!env.S3_BUCKET || !env.S3_REGION)) {
     throw new Error("STORAGE_DRIVER=s3 requires S3_BUCKET and S3_REGION.");
