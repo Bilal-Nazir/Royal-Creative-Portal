@@ -17,7 +17,7 @@ export default async function NewProjectPage() {
       <TopBar
         breadcrumb="Royal Creative / Projects / Create project"
         action={
-          <NotificationsBell className="w-[200px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader title="Create a project" />

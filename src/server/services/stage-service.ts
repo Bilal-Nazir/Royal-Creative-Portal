@@ -1,4 +1,3 @@
-import type { ClientSession } from "mongoose";
 import {
   briefRepository,
   proposalRepository,
@@ -7,7 +6,8 @@ import {
   designVersionRepository,
   projectRepository,
 } from "../repositories/container";
-import { withTransaction } from "../db/mongoose";
+import { withTransaction } from "../db/transaction";
+import type { Tx } from "../repositories/interfaces";
 import { requiredItemsAllAccepted } from "../domain/content";
 import { isInvoiceConfirmed, type Invoice } from "../domain/invoice";
 import { isLaunchChecklistComplete, type Project } from "../domain/project";
@@ -48,13 +48,13 @@ export async function computeGateState(project: Project): Promise<ProjectGateSta
  * transaction; when a caller (e.g. acceptProposal) already has one open and
  * passes it through, this just joins it instead of nesting a second one.
  */
-export async function tryAdvanceStageIfGated(project: Project, session?: ClientSession | null): Promise<Project> {
+export async function tryAdvanceStageIfGated(project: Project, session?: Tx): Promise<Project> {
   const gates = await computeGateState(project);
   const result = canAdvance(project.stage, gates);
   if (!result.allowed || !result.nextStage) return project;
   const nextStage = result.nextStage;
 
-  const advance = async (txSession: ClientSession | null): Promise<Project> => {
+  const advance = async (txSession: Tx): Promise<Project> => {
     const updated: Project = {
       ...project,
       stage: nextStage,
@@ -79,7 +79,7 @@ export async function tryAdvanceStageIfGated(project: Project, session?: ClientS
  * already imports tryAdvanceStageIfGated from this module — importing the
  * other way back would be circular.
  */
-export async function activateScheduledInvoices(projectId: string, session?: ClientSession | null): Promise<void> {
+export async function activateScheduledInvoices(projectId: string, session?: Tx): Promise<void> {
   const invoices = await invoiceRepository.listByProjectId(projectId);
   const dueNow = new Date().toISOString().slice(0, 10);
   let activatedAny = false;

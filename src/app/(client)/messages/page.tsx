@@ -25,7 +25,7 @@ export default async function MessagesPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Messages" action={<NotificationsBell className="w-[180px]" />} />
+      <TopBar breadcrumb="Messages" action={<NotificationsBell iconOnly />} />
       <PageHeader eyebrow="CLIENT PORTAL" title="Messages" description="Your project conversations with Royal Creative." />
       {items.length === 0 ? (
         <p className="text-sm text-ink-secondary">No conversations yet — they&apos;ll appear here once your project team messages you.</p>

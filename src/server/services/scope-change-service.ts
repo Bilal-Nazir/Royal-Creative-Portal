@@ -1,5 +1,5 @@
 import { scopeChangeRepository, projectRepository, invoiceRepository } from "../repositories/container";
-import { withTransaction } from "../db/mongoose";
+import { withTransaction } from "../db/transaction";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, badRequest, notFound, type ServiceResult } from "./result";
 import { notifyAgency, notifyClient } from "./notification-service";

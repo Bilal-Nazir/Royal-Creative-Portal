@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field } from "../ui/Field";
 import { Button } from "../ui/Button";
+import { ColorSwatchPicker } from "../ui/ColorSwatchPicker";
+import { CONTACT_STAGE_COLORS } from "@/server/domain/contact";
 import { cn } from "@/lib/utils";
 
 export interface StageRow {
@@ -21,6 +23,7 @@ export function PipelineStagesManager({ initialStages }: PipelineStagesManagerPr
   const router = useRouter();
   const [stages, setStages] = useState(initialStages);
   const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState(CONTACT_STAGE_COLORS[0]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,7 @@ export function PipelineStagesManager({ initialStages }: PipelineStagesManagerPr
     const response = await fetch("/api/contact-stages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newStageName.trim() }),
+      body: JSON.stringify({ name: newStageName.trim(), color: newStageColor }),
     });
     const data = await response.json();
     setBusy(false);
@@ -43,6 +46,7 @@ export function PipelineStagesManager({ initialStages }: PipelineStagesManagerPr
     }
     setStages((prev) => [...prev, { ...data.stage, contactCount: 0 }]);
     setNewStageName("");
+    setNewStageColor(CONTACT_STAGE_COLORS[0]);
   }
 
   async function handleRename(id: string) {
@@ -94,7 +98,7 @@ export function PipelineStagesManager({ initialStages }: PipelineStagesManagerPr
   return (
     <div className="flex flex-col gap-4 rounded-rc border border-line bg-surface p-6">
       <h2 className="font-heading text-xl font-semibold text-ink">Pipeline stages</h2>
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Field
           label="Stage name"
           hideLabel
@@ -103,6 +107,7 @@ export function PipelineStagesManager({ initialStages }: PipelineStagesManagerPr
           onChange={(e) => setNewStageName(e.target.value)}
           containerClassName="sm:max-w-[280px]"
         />
+        <ColorSwatchPicker colors={CONTACT_STAGE_COLORS} value={newStageColor} onChange={setNewStageColor} />
         <Button variant="secondary" className="w-[140px]" onClick={handleAddStage} disabled={busy}>
           + Add stage
         </Button>

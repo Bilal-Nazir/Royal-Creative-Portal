@@ -35,7 +35,7 @@ export default async function FinalPaymentPage({ params }: { params: Promise<{ p
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
 
   if (invoice.status === "paid") {
@@ -43,7 +43,6 @@ export default async function FinalPaymentPage({ params }: { params: Promise<{ p
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Final balance paid"
           description={`Your ${formatGBP(invoice.amount)} final balance is confirmed.`}
         />
@@ -65,7 +64,6 @@ export default async function FinalPaymentPage({ params }: { params: Promise<{ p
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Final balance not due yet"
           description="Your final balance becomes due once the project reaches Launch."
         />
@@ -79,7 +77,6 @@ export default async function FinalPaymentPage({ params }: { params: Promise<{ p
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={lastFailed ? "Payment unsuccessful" : "Pay your final balance"}
         description={
           lastFailed

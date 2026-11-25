@@ -36,7 +36,7 @@ export default async function DevelopmentRevisionRoundDetailPage({ params }: { p
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader

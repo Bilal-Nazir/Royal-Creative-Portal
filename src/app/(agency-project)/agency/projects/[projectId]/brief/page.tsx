@@ -27,7 +27,7 @@ export default async function BriefEditorPage({ params }: { params: Promise<{ pr
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[200px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader

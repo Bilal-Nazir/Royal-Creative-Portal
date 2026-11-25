@@ -24,14 +24,14 @@ export default async function ContactSettingsPage() {
         breadcrumb="Royal Creative / Contacts"
         action={
           <div className="flex gap-3">
-            <NotificationsBell className="w-[200px]" />
+            <NotificationsBell iconOnly />
             <Button href="/agency/contacts" variant="secondary" className="w-[180px]">
               Back to contacts
             </Button>
           </div>
         }
       />
-      <PageHeader eyebrow="AGENCY WORKSPACE" title="Contact settings" description="Manage the stages on your contact board." />
+      <PageHeader title="Contact settings" description="Manage the stages on your contact board." />
       <PipelineStagesManager initialStages={stageRows} />
     </>
   );

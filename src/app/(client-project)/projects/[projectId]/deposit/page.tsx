@@ -30,7 +30,7 @@ export default async function DepositPage({ params }: { params: Promise<{ projec
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
 
   if (invoice.status === "paid") {
@@ -38,7 +38,6 @@ export default async function DepositPage({ params }: { params: Promise<{ projec
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Deposit paid"
           description={`Your ${formatGBP(invoice.amount)} deposit is confirmed. You can now share your project content and files.`}
         />
@@ -61,7 +60,6 @@ export default async function DepositPage({ params }: { params: Promise<{ projec
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={lastFailed ? "Payment unsuccessful" : "Pay your deposit"}
         description={
           lastFailed

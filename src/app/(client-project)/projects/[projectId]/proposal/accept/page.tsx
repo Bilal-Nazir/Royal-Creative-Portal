@@ -32,11 +32,10 @@ export default async function ProposalAcceptPage({ params }: { params: Promise<{
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Confirm your proposal acceptance"
         description="Review the agreed version and terms before confirming."
       />

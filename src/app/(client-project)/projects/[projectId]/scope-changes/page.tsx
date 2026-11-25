@@ -26,7 +26,7 @@ export default async function ScopeChangesPage({ params }: { params: Promise<{ p
   const scopeChanges = await getScopeChanges(projectId);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
   const userCanAct = canAct(session);
   const pending = scopeChanges.filter((s) => s.status === "pending");
@@ -36,7 +36,7 @@ export default async function ScopeChangesPage({ params }: { params: Promise<{ p
     return (
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
-        <PageHeader eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`} title="No scope changes" description="You'll see any requests here." />
+        <PageHeader title="No scope changes" description="You'll see any requests here." />
         <EmptyReviewCard title="Nothing to review" description="Royal Creative hasn't sent any scope change requests yet." />
       </>
     );
@@ -46,7 +46,6 @@ export default async function ScopeChangesPage({ params }: { params: Promise<{ p
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={pending[0]?.title ?? "A request beyond the agreed scope"}
         description={pending[0] ? undefined : "Review past scope decisions below."}
       />

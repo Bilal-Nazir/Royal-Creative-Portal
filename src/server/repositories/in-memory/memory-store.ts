@@ -1,6 +1,7 @@
 import { mkdirSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Project } from "../../domain/project";
+import type { ProjectBoardColumn } from "../../domain/project-board";
 import type { BriefVersion } from "../../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../../domain/proposal";
 import type { Invoice } from "../../domain/invoice";
@@ -39,6 +40,7 @@ import {
   SEED_CONTACTS,
   SEED_CONTACT_ACTIVITIES,
   SEED_AGENCY_SETTINGS,
+  SEED_PROJECT_BOARD_COLUMNS,
 } from "./seed-data-phase2a";
 
 export interface StoreShape {
@@ -67,6 +69,7 @@ export interface StoreShape {
   agencySettings: AgencySettings;
   invites: Invite[];
   passwordResetTokens: PasswordResetToken[];
+  projectBoardColumns: ProjectBoardColumn[];
 }
 
 const UPLOAD_DIR = join(process.cwd(), ".data", "uploads");
@@ -113,6 +116,7 @@ function seedStore(): StoreShape {
       agencySettings: SEED_AGENCY_SETTINGS,
       invites: [],
       passwordResetTokens: [],
+      projectBoardColumns: SEED_PROJECT_BOARD_COLUMNS,
     }),
   );
 }

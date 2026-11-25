@@ -28,11 +28,10 @@ export default async function AgencyPaymentsPage() {
       <TopBar
         breadcrumb="Royal Creative / Payments"
         action={
-          <NotificationsBell className="w-[200px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow="AGENCY WORKSPACE"
         title="Payments"
         description="View invoices and record payments received outside Stripe."
         action={

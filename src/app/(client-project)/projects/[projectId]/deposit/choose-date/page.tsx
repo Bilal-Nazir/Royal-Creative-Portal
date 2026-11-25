@@ -31,11 +31,10 @@ export default async function ChoosePaymentDatePage({ params }: { params: Promis
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Choose a payment date"
         description="Pick the day you expect to make the deposit."
       />

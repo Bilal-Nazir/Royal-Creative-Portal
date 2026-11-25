@@ -30,11 +30,10 @@ export default async function ProjectConversationPage({
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Keep the conversation with the work"
         description="Project messages and direct contact stay accessible during reviews."
       />

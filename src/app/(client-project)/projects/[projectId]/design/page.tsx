@@ -27,7 +27,7 @@ export default async function DesignReviewPage({ params }: { params: Promise<{ p
   const current = await getCurrentDesignVersion(projectId);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
   const userCanAct = canAct(session);
 
@@ -36,7 +36,6 @@ export default async function DesignReviewPage({ params }: { params: Promise<{ p
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Your design review will appear here."
           description="Once Royal Creative shares a design, you'll review it here."
         />
@@ -51,7 +50,6 @@ export default async function DesignReviewPage({ params }: { params: Promise<{ p
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Design approved. Next: development."
           description={`You approved Homepage Version ${current.versionNumber}. The agreed design is now the build baseline.`}
         />
@@ -96,7 +94,6 @@ export default async function DesignReviewPage({ params }: { params: Promise<{ p
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={current.versionNumber > 1 ? "Your revised design is ready" : "Review your homepage design"}
         description={
           current.versionNumber > 1

@@ -34,7 +34,7 @@ export default async function DevelopmentReviewPage({ params }: { params: Promis
   const current = await getCurrentDesignVersion(projectId, "development");
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
   const userCanAct = canAct(session);
 
@@ -43,7 +43,6 @@ export default async function DevelopmentReviewPage({ params }: { params: Promis
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Your development review will appear here."
           description="Once Royal Creative shares the staging site, you'll review it here."
         />
@@ -58,7 +57,6 @@ export default async function DevelopmentReviewPage({ params }: { params: Promis
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Build approved. Next: launch."
           description={`You approved Build Version ${current.versionNumber}. Royal Creative is preparing for launch.`}
         />
@@ -99,7 +97,6 @@ export default async function DevelopmentReviewPage({ params }: { params: Promis
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={current.versionNumber > 1 ? "The updated website is ready" : "Review the developed website"}
         description={
           current.versionNumber > 1

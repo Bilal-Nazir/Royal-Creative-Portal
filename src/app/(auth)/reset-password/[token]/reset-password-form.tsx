@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Field } from "@/components/ui/Field";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { Button } from "@/components/ui/Button";
 
 export function ResetPasswordForm({ token }: { token: string }) {
@@ -44,12 +44,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-      <Field label="New password" id="password" name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" required minLength={8} />
-      <Field
+      <PasswordField label="New password" id="password" name="password" placeholder="At least 8 characters" autoComplete="new-password" required minLength={8} />
+      <PasswordField
         label="Confirm password"
         id="confirmPassword"
         name="confirmPassword"
-        type="password"
         placeholder="Re-enter your password"
         autoComplete="new-password"
         required

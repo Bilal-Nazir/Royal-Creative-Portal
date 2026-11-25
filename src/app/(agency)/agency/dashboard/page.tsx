@@ -75,20 +75,11 @@ export default async function AgencyDashboardPage() {
       <TopBar
         breadcrumb="Royal Creative / Dashboard"
         action={
-          <NotificationsBell className="w-[200px]" />
+          <NotificationsBell iconOnly />
         }
       />
 
-      <PageHeader
-        eyebrow="AGENCY WORKSPACE"
-        title="Agency dashboard"
-        description={overview.periodLabel}
-        action={
-          <Button href="/agency/projects/new" variant="primary" className="w-[220px]">
-            Create project
-          </Button>
-        }
-      />
+      <PageHeader title="Agency dashboard" description={overview.periodLabel} />
 
       <div className="flex flex-wrap gap-4">
         {overview.metricCards.map((metric) => (

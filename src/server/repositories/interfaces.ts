@@ -1,5 +1,6 @@
 import type { User } from "../domain/user";
 import type { Project, ActivityItem, AttentionTask } from "../domain/project";
+import type { ProjectBoardColumn } from "../domain/project-board";
 import type { BriefVersion } from "../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../domain/proposal";
 import type { Invoice } from "../domain/invoice";
@@ -16,7 +17,16 @@ import type { Contact, ContactStage, ContactActivity } from "../domain/contact";
 import type { AgencySettings } from "../domain/settings";
 import type { Invite } from "../domain/invite";
 import type { PasswordResetToken } from "../domain/password-reset";
-import type { ClientSession } from "mongoose";
+
+/**
+ * Opaque per-driver transaction handle — Mongo's ClientSession or Dynamo's
+ * TransactionContext (db/dynamo.ts), never both at once. Typed as `unknown`
+ * here so this shared interface file doesn't depend on either driver; each
+ * repository implementation casts it to its own concrete type. TS checks
+ * class methods bivariantly, so a Mongo repo declaring `session?: ClientSession
+ * | null` still satisfies `tx?: Tx` here without an explicit cast.
+ */
+export type Tx = unknown;
 
 export interface UserRepository {
   findByEmail(email: string): Promise<User | null>;
@@ -36,7 +46,7 @@ export interface ProjectRepository {
   listByAssigneeId(assigneeId: string): Promise<Project[]>;
   findById(id: string): Promise<Project | null>;
   /** `session`, when given, runs this write inside the caller's Mongo transaction (see db/mongoose.ts) — ignored by the memory driver. */
-  update(project: Project, session?: ClientSession | null): Promise<void>;
+  update(project: Project, tx?: Tx): Promise<void>;
   create(project: Project): Promise<void>;
 }
 
@@ -60,13 +70,13 @@ export interface ProposalRepository {
   listAll(): Promise<ProposalVersion[]>;
   getCurrentVersion(projectId: string): Promise<ProposalVersion | null>;
   findVersionById(id: string): Promise<ProposalVersion | null>;
-  update(version: ProposalVersion, session?: ClientSession | null): Promise<void>;
+  update(version: ProposalVersion, tx?: Tx): Promise<void>;
   create(version: ProposalVersion): Promise<void>;
 }
 
 export interface AcceptanceRecordRepository {
   listByProjectId(projectId: string): Promise<AcceptanceRecord[]>;
-  create(record: AcceptanceRecord, session?: ClientSession | null): Promise<void>;
+  create(record: AcceptanceRecord, tx?: Tx): Promise<void>;
 }
 
 export interface InvoiceRepository {
@@ -74,7 +84,7 @@ export interface InvoiceRepository {
   listByProjectId(projectId: string): Promise<Invoice[]>;
   getDepositInvoice(projectId: string): Promise<Invoice | null>;
   findById(id: string): Promise<Invoice | null>;
-  update(invoice: Invoice, session?: ClientSession | null): Promise<void>;
+  update(invoice: Invoice, tx?: Tx): Promise<void>;
 }
 
 export interface CommentRepository {
@@ -127,7 +137,7 @@ export interface ScopeChangeRepository {
   listByProjectId(projectId: string): Promise<ScopeChange[]>;
   findById(id: string): Promise<ScopeChange | null>;
   create(scopeChange: ScopeChange): Promise<void>;
-  update(scopeChange: ScopeChange, session?: ClientSession | null): Promise<void>;
+  update(scopeChange: ScopeChange, tx?: Tx): Promise<void>;
 }
 
 export interface HandoverResourceRepository {
@@ -149,11 +159,19 @@ export interface ConversationReadRepository {
 }
 
 export interface NotificationRepository {
-  create(notification: Notification, session?: ClientSession | null): Promise<void>;
+  create(notification: Notification, tx?: Tx): Promise<void>;
   listByProjectId(projectId: string): Promise<Notification[]>;
   listAll(): Promise<Notification[]>;
   findById(id: string): Promise<Notification | null>;
   update(notification: Notification): Promise<void>;
+}
+
+export interface ProjectBoardColumnRepository {
+  listAll(): Promise<ProjectBoardColumn[]>;
+  findById(id: string): Promise<ProjectBoardColumn | null>;
+  create(column: ProjectBoardColumn): Promise<void>;
+  update(column: ProjectBoardColumn): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 export interface ContactStageRepository {

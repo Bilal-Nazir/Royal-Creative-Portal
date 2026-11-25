@@ -30,7 +30,7 @@ export default async function AgencyDevelopmentHubPage({ params }: { params: Pro
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader

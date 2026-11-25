@@ -7,6 +7,21 @@ export interface ContactStage {
   color: string;
 }
 
+/** Matches the plain card background (see ContactsBoard.tsx) — the "no colour" default so a new stage looks like every other card until the agency picks something else. */
+export const DEFAULT_CONTACT_STAGE_COLOR = "#1e1e24";
+
+/** Palette offered by the colour picker when adding a stage — first entry (and the default) is "no colour". */
+export const CONTACT_STAGE_COLORS = [
+  DEFAULT_CONTACT_STAGE_COLOR,
+  "#8b8fa3",
+  "#7aa3f7",
+  "#a78bfa",
+  "#4ade80",
+  "#f87171",
+  "#f2b84b",
+  "#4fd1c5",
+];
+
 /** A17/A18/A28 — a lead or client contact tracked from first enquiry to a decision. */
 export interface Contact {
   id: string;

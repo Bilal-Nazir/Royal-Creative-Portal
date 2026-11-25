@@ -17,9 +17,8 @@ export default async function AgencyNotificationsPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Royal Creative / Notifications" action={<NotificationsBell className="w-[200px]" />} />
+      <TopBar breadcrumb="Royal Creative / Notifications" action={<NotificationsBell iconOnly />} />
       <PageHeader
-        eyebrow="AGENCY WORKSPACE"
         title="Notifications"
         description={`${notifications.length} updates across your agency · ${unreadCount} unread · Each update links to the related work.`}
       />

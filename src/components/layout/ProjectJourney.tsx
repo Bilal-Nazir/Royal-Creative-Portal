@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { STAGE_ORDER, STAGE_LABELS, stageIndex, type Stage } from "@/server/domain/stage";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +49,7 @@ export function ProjectJourney({
   briefSkipped,
 }: ProjectJourneyProps) {
   const currentIndex = stageIndex(currentStage);
+  const pathname = usePathname();
 
   return (
     <ol className={cn("flex flex-col gap-[14px]", className)}>
@@ -67,11 +71,21 @@ export function ProjectJourney({
         // only done/current stages do (the client-side convention).
         const isLinkable = linkableStages ? linkableStages.includes(stage) : status !== "upcoming";
         const href = projectId && route && isLinkable ? `${basePath}/${projectId}/${route}` : null;
+        // The page you're actually viewing — independent of status, which reflects the project's real progress, not navigation.
+        const isViewing = !!href && !!pathname && (pathname === href || pathname.startsWith(`${href}/`));
 
         return (
           <li key={stage}>
             {href ? (
-              <Link href={href} className={cn("text-[13px] font-medium hover:underline", textClass)}>
+              <Link
+                href={href}
+                aria-current={isViewing ? "page" : undefined}
+                className={cn(
+                  "text-[13px] font-medium hover:underline",
+                  textClass,
+                  isViewing && "-mx-2 rounded-md bg-surface-2 px-2 py-1 no-underline",
+                )}
+              >
                 {glyph}&nbsp;&nbsp;{STAGE_LABELS[stage]}
               </Link>
             ) : (
@@ -81,6 +95,7 @@ export function ProjectJourney({
             )}
             <span className="sr-only">
               {status === "done" ? " — completed" : status === "current" ? " — current stage" : " — upcoming"}
+              {isViewing ? " — currently viewing" : ""}
             </span>
           </li>
         );

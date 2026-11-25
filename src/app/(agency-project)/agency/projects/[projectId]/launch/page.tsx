@@ -32,7 +32,7 @@ export default async function AgencyLaunchChecklistPage({ params }: { params: Pr
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader

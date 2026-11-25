@@ -23,7 +23,7 @@ export default async function AgencyProjectConversationPage({ params }: { params
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`} title="Project conversation" description="Chat with the client without leaving the project." />

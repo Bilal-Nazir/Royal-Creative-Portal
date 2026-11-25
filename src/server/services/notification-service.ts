@@ -1,5 +1,5 @@
-import type { ClientSession } from "mongoose";
 import { notificationRepository, projectRepository, userRepository, agencySettingsRepository } from "../repositories/container";
+import type { Tx } from "../repositories/interfaces";
 import type { SessionPayload } from "../auth/session";
 import { forbidden, notFound, ok, type ServiceResult } from "./result";
 import { isClientUser, isAgencyUser } from "../domain/user";
@@ -22,7 +22,7 @@ async function createNotification(
   title: string,
   body: string,
   recipientUserId?: string,
-  session?: ClientSession | null,
+  session?: Tx,
 ): Promise<void> {
   const notification: Notification = {
     id: `notification-${projectId}-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -86,7 +86,7 @@ export async function notifyAgency(
   type: NotificationType,
   title: string,
   body: string,
-  session?: ClientSession | null,
+  session?: Tx,
 ): Promise<void> {
   await createNotification(projectId, type, "agency", title, body, undefined, session);
 }
@@ -96,7 +96,7 @@ export async function notifyClient(
   type: NotificationType,
   title: string,
   body: string,
-  session?: ClientSession | null,
+  session?: Tx,
 ): Promise<void> {
   await createNotification(projectId, type, "client", title, body, undefined, session);
 }

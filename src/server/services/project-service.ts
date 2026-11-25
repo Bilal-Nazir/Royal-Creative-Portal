@@ -1,9 +1,9 @@
 import { projectRepository, activityRepository, attentionRepository, userRepository, briefRepository, proposalRepository } from "../repositories/container";
 import type { SessionPayload } from "../auth/session";
-import { filterProjectsForAgencyUser } from "./permissions";
-import { forbidden, ok, type ServiceResult } from "./result";
+import { filterProjectsForAgencyUser, assertAgencyCanManageProject } from "./permissions";
+import { forbidden, notFound, badRequest, ok, type ServiceResult } from "./result";
 import { isAgencyUser, isClientUser, type ClientUser } from "../domain/user";
-import type { Project, ProjectType } from "../domain/project";
+import { PROJECT_TYPES, type Project, type ProjectType } from "../domain/project";
 import type { BriefVersion } from "../domain/brief";
 import type { ProposalVersion } from "../domain/proposal";
 import { SEED_USERS } from "../repositories/in-memory/seed-data";
@@ -149,4 +149,94 @@ export async function createProject(
   }
 
   return ok(project);
+}
+
+export interface QuickCreateProjectInput {
+  name: string;
+  assigneeId: string;
+  /** Board column the card was created from (A15's inline "+ Create project") — set directly so it appears in the right list without a follow-up move. */
+  boardColumnId?: string;
+}
+
+/**
+ * Jira-style one-line create: title + assignee only. Client, project type and
+ * due date are real, permanent fields (no edit history, used for billing and
+ * client-facing access) so they can't be guessed — this defaults them to a
+ * placeholder client/type/date and relies on updateProjectDetails to fix them
+ * up afterward from the project detail page.
+ */
+export async function quickCreateProject(session: SessionPayload, input: QuickCreateProjectInput): Promise<ServiceResult<Project>> {
+  if (!input.name.trim()) return badRequest("Give the project a title.");
+
+  const directory = await getClientDirectory();
+  const defaultClient = directory[0];
+  if (!defaultClient) return badRequest("Add a client before creating a project.");
+
+  const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const result = await createProject(session, {
+    name: input.name.trim(),
+    description: "",
+    projectType: PROJECT_TYPES[0],
+    clientId: defaultClient.clientId,
+    assigneeId: input.assigneeId,
+    dueDate,
+  });
+  if (!result.ok) return result;
+
+  if (input.boardColumnId) {
+    const project: Project = { ...result.data, boardColumnId: input.boardColumnId };
+    await projectRepository.update(project);
+    return ok(project);
+  }
+  return result;
+}
+
+export interface UpdateProjectDetailsInput {
+  clientId?: string;
+  projectType?: ProjectType;
+  dueDate?: string;
+  assigneeId?: string;
+}
+
+/** Fixes up the fields quickCreateProject had to guess — gated the same as any other project-management action (owner/admin, or the assignee on their own project). */
+export async function updateProjectDetails(
+  session: SessionPayload,
+  projectId: string,
+  patch: UpdateProjectDetailsInput,
+): Promise<ServiceResult<Project>> {
+  const project = await projectRepository.findById(projectId);
+  if (!project) return notFound("Project not found.");
+
+  const denied = assertAgencyCanManageProject<Project>(session, project);
+  if (denied) return denied;
+
+  const updated: Project = { ...project };
+
+  if (patch.clientId) {
+    const directory = await getClientDirectory();
+    const client = directory.find((c) => c.clientId === patch.clientId);
+    if (!client) return badRequest("Unknown client.");
+    updated.clientId = client.clientId;
+    updated.clientName = client.clientName;
+  }
+
+  if (patch.projectType) {
+    if (!PROJECT_TYPES.includes(patch.projectType)) return badRequest("Unknown project type.");
+    updated.projectType = patch.projectType;
+  }
+
+  if (patch.dueDate) {
+    updated.dueDate = patch.dueDate;
+  }
+
+  if (patch.assigneeId) {
+    const assignee = await userRepository.findById(patch.assigneeId);
+    if (!assignee || !isAgencyUser(assignee)) return badRequest("Unknown assignee.");
+    updated.assigneeId = assignee.id;
+    updated.assigneeName = assignee.name;
+  }
+
+  await projectRepository.update(updated);
+  return ok(updated);
 }

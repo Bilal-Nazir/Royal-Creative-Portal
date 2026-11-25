@@ -20,9 +20,8 @@ export default async function AgencySettingsPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Royal Creative / Settings" action={<NotificationsBell className="w-[200px]" />} />
+      <TopBar breadcrumb="Royal Creative / Settings" action={<NotificationsBell iconOnly />} />
       <PageHeader
-        eyebrow="AGENCY WORKSPACE"
         title="Settings"
         description="Agency details, owner contact, team access and alerts."
       />

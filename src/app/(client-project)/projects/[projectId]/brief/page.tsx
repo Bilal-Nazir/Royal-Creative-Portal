@@ -31,7 +31,7 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
 
   if (brief.status === "approved") {
@@ -39,31 +39,19 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Brief approved"
-          description="Royal Creative is preparing your proposal with pricing, deliverables and a timeline. We'll notify you when it's ready to review."
+          description={`Approved by ${brief.approvedByName} on ${brief.approvedAt ? formatDate(brief.approvedAt) : ""}. Royal Creative is preparing your proposal with pricing, deliverables and a timeline.`}
         />
-        <Card className="flex flex-col gap-4 p-6">
-          <h2 className="font-heading text-xl font-semibold text-ink">Website brief · Version {brief.versionNumber}</h2>
-          <p className="text-sm text-ink-secondary">
-            Approved by {brief.approvedByName} on {brief.approvedAt ? formatDate(brief.approvedAt) : ""}
-          </p>
-          <Button href="#approved-brief-document" variant="primary" className="w-[196px]">
-            View approved brief
-          </Button>
-        </Card>
-        <div id="approved-brief-document">
-          <BriefDocument
-            title={`Website brief · Version ${brief.versionNumber}`}
-            fields={brief.fields}
-            variant="paper"
-            action={
-              <Button href={`/api/projects/${projectId}/brief/pdf`} variant="secondary" className="w-[196px]">
-                Download PDF brief
-              </Button>
-            }
-          />
-        </div>
+        <BriefDocument
+          title={`Website brief · Version ${brief.versionNumber}`}
+          fields={brief.fields}
+          variant="paper"
+          action={
+            <Button href={`/api/projects/${projectId}/brief/pdf`} variant="secondary" className="w-[196px]">
+              Download PDF brief
+            </Button>
+          }
+        />
       </>
     );
   }
@@ -74,7 +62,6 @@ export default async function BriefReviewPage({ params }: { params: Promise<{ pr
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={isChangesRequested ? "Changes requested" : "Let's make sure we've understood."}
         description={
           isChangesRequested

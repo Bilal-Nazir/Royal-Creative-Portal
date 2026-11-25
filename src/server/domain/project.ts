@@ -49,6 +49,8 @@ export interface Project {
   clientName: string;
   contactName: string;
   stage: Stage;
+  /** Column on the Projects kanban board (A15) — purely organisational, defaults to `stage` when unset. See domain/project-board.ts. */
+  boardColumnId?: string;
   /** Internal, agency-facing status (shown on the agency dashboard project cards). */
   statusLabel: string;
   /** Friendly, client-facing status (shown on the client dashboard). */

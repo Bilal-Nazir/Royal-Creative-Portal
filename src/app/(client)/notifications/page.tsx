@@ -17,7 +17,7 @@ export default async function ClientNotificationsPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Notifications" action={<NotificationsBell className="w-[180px]" />} />
+      <TopBar breadcrumb="Notifications" action={<NotificationsBell iconOnly />} />
       <PageHeader
         eyebrow="CLIENT PORTAL"
         title="Notifications"

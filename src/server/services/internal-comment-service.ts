@@ -9,6 +9,14 @@ export async function getInternalComments(projectId: string): Promise<Comment[]>
   return commentRepository.listByTarget(projectId, "internal", projectId);
 }
 
+/** A15's Trello-style per-card comment badge — one count per project, for the whole board at once. */
+export async function getInternalCommentCounts(projectIds: string[]): Promise<Record<string, number>> {
+  const entries = await Promise.all(
+    projectIds.map(async (id) => [id, (await getInternalComments(id)).length] as const),
+  );
+  return Object.fromEntries(entries);
+}
+
 export async function postInternalComment(
   session: SessionPayload,
   projectId: string,

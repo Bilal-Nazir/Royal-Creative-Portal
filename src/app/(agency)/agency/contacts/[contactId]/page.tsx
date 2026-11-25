@@ -38,7 +38,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
         breadcrumb="Royal Creative / Contacts"
         action={
           <div className="flex gap-3">
-            <NotificationsBell className="w-[200px]" />
+            <NotificationsBell iconOnly />
             <Button href="/agency/contacts" variant="secondary" className="w-[180px]">
               Back to contacts
             </Button>
@@ -46,7 +46,6 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
         }
       />
       <PageHeader
-        eyebrow="AGENCY WORKSPACE"
         title={contact.name}
         description={`${contact.company} · ${contact.email}${contact.ownerName ? ` · Owner: ${contact.ownerName}` : ""}`}
       />

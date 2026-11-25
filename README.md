@@ -15,17 +15,16 @@ app running locally.
 ## Requirements
 
 - Node.js 20+, npm
-- MongoDB, running as a (single-node is fine) **replica set** — required for
-  transactions. See "Local setup" in `docs/PROJECT_CONTEXT.md` for exact
-  conversion steps if your local Mongo is a standalone instance.
-- Redis
+- An AWS account with DynamoDB access (region + an IAM access key) — this
+  app's only data store. No local database to run.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in AUTH_SECRET, MONGODB_URI, REDIS_URL
-npm run db:seed              # wipes MONGODB_URI and loads demo data (asks for confirmation)
+cp .env.example .env.local        # fill in AUTH_SECRET, AWS_REGION, DYNAMO_TABLE_PREFIX, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+npm run dynamo:create-tables       # one-time — creates every table under DYNAMO_TABLE_PREFIX (idempotent, safe to re-run)
+npm run db:seed                    # wipes every row under DYNAMO_TABLE_PREFIX and loads demo data (asks for confirmation)
 npm run dev
 ```
 
@@ -38,7 +37,7 @@ uses the password `password123` — see "Seeded logins" in
 ```bash
 npm run lint
 npm run typecheck
-npm run test     # vitest — REPOSITORY_DRIVER=memory, no live Mongo needed except one skip-if-unreachable suite
+npm run test     # vitest — REPOSITORY_DRIVER=memory, fully offline, no AWS access needed
 npm run build
 npx playwright test
 ```

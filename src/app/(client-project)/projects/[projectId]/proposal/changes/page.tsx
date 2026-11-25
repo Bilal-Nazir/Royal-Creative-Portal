@@ -22,11 +22,10 @@ export default async function ProposalChangesPage({ params }: { params: Promise<
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Request proposal changes"
         description="Tell us what you'd like to change about the scope, timeline or payment schedule."
       />

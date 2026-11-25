@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { requestPasswordReset, resetPassword, isResetTokenValid } from "./password-reset-service";
 import { passwordResetTokenRepository, userRepository } from "../repositories/container";
 import { resetStore } from "../repositories/in-memory/memory-store";
 import { emailProvider } from "../email";
 import { verifyPassword } from "../auth/password";
 import { sessionService } from "../auth/session";
-import { getRedis } from "../db/redis";
+import { resetSessionStore } from "../auth/session-memory";
 
-/** Password-reset expiry/one-time-use, against the memory driver for users/tokens and real Redis (DB 1) for session revocation. */
+/** Password-reset expiry/one-time-use, against the memory driver for users/tokens and sessions. */
 
 function hashToken(rawToken: string): string {
   return createHash("sha256").update(rawToken).digest("hex");
@@ -25,14 +25,10 @@ function tokenFromLink(link: string): string {
   return link.split("/").pop()!;
 }
 
-afterEach(async () => {
+afterEach(() => {
   resetStore();
+  resetSessionStore();
   vi.restoreAllMocks();
-  await getRedis().flushdb();
-});
-
-afterAll(async () => {
-  await getRedis().quit();
 });
 
 describe("requestPasswordReset", () => {

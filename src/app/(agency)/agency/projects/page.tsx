@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { getSessionFromCookies } from "@/server/auth/cookies";
-import { getProjectsForAgencyUser } from "@/server/services/project-service";
+import { getProjectsForAgencyUser, getAssignableAgencyUsers } from "@/server/services/project-service";
+import { listBoardColumns } from "@/server/services/project-board-service";
+import { getInternalCommentCounts } from "@/server/services/internal-comment-service";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { ProjectsBoard } from "@/components/project/ProjectsBoard";
 
 export default async function AgencyProjectsPage() {
@@ -13,27 +14,24 @@ export default async function AgencyProjectsPage() {
     redirect("/sign-in");
   }
 
-  const projects = await getProjectsForAgencyUser(session);
+  const [projects, columns] = await Promise.all([getProjectsForAgencyUser(session), listBoardColumns()]);
+  const assignees = getAssignableAgencyUsers();
+  const commentCounts = await getInternalCommentCounts(projects.map((p) => p.id));
 
   return (
-    <>
+    <div className="flex flex-col gap-3">
       <TopBar
         breadcrumb="Royal Creative / Projects"
-        action={
-          <NotificationsBell className="w-[200px]" />
-        }
+        action={<NotificationsBell iconOnly />}
       />
-      <PageHeader
-        eyebrow="AGENCY WORKSPACE"
-        title="Projects"
-        description={`Showing ${projects.length} active project${projects.length === 1 ? "" : "s"}. Open a card to see its project journey.`}
-        action={
-          <Button href="/agency/projects/new" variant="primary" className="w-[196px]">
-            Create project
-          </Button>
-        }
+      <PageHeader title="Projects" />
+      <ProjectsBoard
+        projects={projects}
+        columns={columns}
+        assignees={assignees}
+        currentUserId={session.userId}
+        commentCounts={commentCounts}
       />
-      <ProjectsBoard projects={projects} />
-    </>
+    </div>
   );
 }

@@ -9,7 +9,6 @@ import { FileDropField, type UploadedFileRef } from "@/components/project/FileDr
 export function ContentSubmissionForm({ projectId, checklistItemId }: { projectId: string; checklistItemId: string }) {
   const router = useRouter();
   const [files, setFiles] = useState<UploadedFileRef[]>([]);
-  const [sharedLink, setSharedLink] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +20,7 @@ export function ContentSubmissionForm({ projectId, checklistItemId }: { projectI
       const response = await fetch(`/api/projects/${projectId}/content/items/${checklistItemId}/submissions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileIds: files.map((f) => f.id), sharedLink: sharedLink || undefined, notes: notes || undefined }),
+        body: JSON.stringify({ fileIds: files.map((f) => f.id), notes: notes || undefined }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) {
@@ -37,7 +36,7 @@ export function ContentSubmissionForm({ projectId, checklistItemId }: { projectI
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-rc-control bg-surface-2 p-4">
+    <div className="flex flex-col gap-3">
       <FileDropField
         projectId={projectId}
         scope="content"
@@ -46,13 +45,7 @@ export function ContentSubmissionForm({ projectId, checklistItemId }: { projectI
         onFilesChange={setFiles}
       />
       <Field
-        label="Shared link (optional)"
-        value={sharedLink}
-        onChange={(e) => setSharedLink(e.target.value)}
-        placeholder="Paste a shared folder or file link"
-      />
-      <Field
-        label="Notes (optional)"
+        label="Description (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Tell us which pages these assets are for"

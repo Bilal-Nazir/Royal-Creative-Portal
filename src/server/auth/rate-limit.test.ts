@@ -1,13 +1,8 @@
-import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { checkRateLimit } from "./rate-limit";
-import { getRedis } from "../db/redis";
+import { afterEach, describe, expect, it } from "vitest";
+import { checkRateLimit, resetRateLimitStore } from "./rate-limit";
 
-afterEach(async () => {
-  await getRedis().flushdb();
-});
-
-afterAll(async () => {
-  await getRedis().quit();
+afterEach(() => {
+  resetRateLimitStore();
 });
 
 describe("checkRateLimit", () => {

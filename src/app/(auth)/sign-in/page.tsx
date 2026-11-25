@@ -4,6 +4,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { Field } from "@/components/ui/Field";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { Button } from "@/components/ui/Button";
 import { isSafeReturnTo } from "@/lib/utils";
 
@@ -80,11 +81,10 @@ function SignInForm() {
               autoComplete="email"
               required
             />
-            <Field
+            <PasswordField
               label="Password"
               id="password"
               name="password"
-              type="password"
               placeholder="Enter your password"
               autoComplete="current-password"
               required

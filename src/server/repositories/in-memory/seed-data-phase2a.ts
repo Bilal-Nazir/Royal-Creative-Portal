@@ -10,6 +10,8 @@ import type { Notification } from "../../domain/notification";
 import type { UploadedFile } from "../../domain/upload";
 import type { ContactStage, Contact, ContactActivity } from "../../domain/contact";
 import type { AgencySettings } from "../../domain/settings";
+import type { ProjectBoardColumn } from "../../domain/project-board";
+import { STAGE_ORDER, STAGE_LABELS } from "../../domain/stage";
 
 const ROYAL_TRENDSY_BRIEF_FIELDS = {
   objective: "launch a polished ecommerce website for Royal Trendsy.",
@@ -838,3 +840,27 @@ export const SEED_SHARE_LINKS: ShareLink[] = [
     expiresAt: "2026-12-31T23:59:59.000Z",
   },
 ];
+
+// A15 — Projects board columns. One default column per journey stage so the
+// board looks unchanged out of the box; ids intentionally equal the stage
+// name so an un-migrated project (no boardColumnId set) falls back to the
+// column matching its real stage. Agencies can rename/delete these and add
+// their own custom columns (e.g. "Accepted"/"Rejected") freely from here —
+// custom columns are purely organisational and never touch Project.stage.
+const STAGE_DOT_COLOR: Record<string, string> = {
+  brief: "#f2b84b",
+  proposal: "#a3adc7",
+  deposit: "#7aa3f7",
+  content: "#b89cf7",
+  design: "#73c79e",
+  development: "#eb878f",
+  launch: "#4fd1c5",
+  handover: "#9ca3af",
+};
+
+export const SEED_PROJECT_BOARD_COLUMNS: ProjectBoardColumn[] = STAGE_ORDER.map((stage, index) => ({
+  id: stage,
+  name: STAGE_LABELS[stage],
+  order: index,
+  color: STAGE_DOT_COLOR[stage],
+}));

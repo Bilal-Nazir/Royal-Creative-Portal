@@ -6,6 +6,8 @@ import { getScopeChanges } from "@/server/services/scope-change-service";
 import { getBriefForProject } from "@/server/services/brief-service";
 import { userRepository } from "@/server/repositories/container";
 import { isClientUser } from "@/server/domain/user";
+import { getAssignableAgencyUsers, getClientDirectory } from "@/server/services/project-service";
+import { PROJECT_TYPES } from "@/server/domain/project";
 import { formatDate, formatGBP } from "@/lib/format";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
@@ -14,10 +16,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ListRow } from "@/components/ui/ListRow";
-import { AssigneeChip } from "@/components/ui/AssigneeChip";
 import { CreateScopeChangeForm } from "@/components/project/CreateScopeChangeForm";
 import { SkipBriefButton } from "@/components/project/SkipBriefButton";
 import { InviteClientButton } from "@/components/project/InviteClientButton";
+import { ProjectDetailsEditor } from "@/components/project/ProjectDetailsEditor";
 import { InternalCommentForm } from "./internal-comment-form";
 
 const SCOPE_CHANGE_TONE: Record<string, "success" | "warning" | "neutral"> = { accepted: "success", declined: "neutral", pending: "warning" };
@@ -30,25 +32,29 @@ export default async function AgencyProjectDetailPage({ params }: { params: Prom
   const project = await projectRepository.findById(projectId);
   if (!project) redirect("/agency/projects");
 
-  const [comments, scopeChanges, brief, clientUsers] = await Promise.all([
+  const [comments, scopeChanges, brief, clientUsers, clients] = await Promise.all([
     getInternalComments(projectId),
     getScopeChanges(projectId),
     getBriefForProject(projectId),
     userRepository.listClientUsers(),
+    getClientDirectory(),
   ]);
+  const assignees = getAssignableAgencyUsers();
 
   const canSkipBrief =
     (session.agencyRole === "owner" || session.agencyRole === "admin") &&
     project.stage === "brief" &&
     (!brief || brief.status === "draft");
   const hasClientAccount = clientUsers.filter(isClientUser).some((u) => u.clientId === project.clientId);
+  const canEditDetails =
+    session.agencyRole === "owner" || session.agencyRole === "admin" || project.assigneeId === session.userId;
 
   return (
     <>
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[200px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
@@ -63,10 +69,19 @@ export default async function AgencyProjectDetailPage({ params }: { params: Prom
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         <Card className="flex flex-1 flex-col gap-5 p-6">
           <h2 className="font-heading text-xl font-semibold text-ink">Project details</h2>
-          <div className="flex flex-col gap-2">
-            <h3 className="font-heading text-base font-semibold text-ink">Assignee</h3>
-            <AssigneeChip name={project.assigneeName} />
-          </div>
+          <ProjectDetailsEditor
+            projectId={projectId}
+            clientId={project.clientId}
+            clientName={project.clientName}
+            projectType={project.projectType}
+            projectTypes={PROJECT_TYPES}
+            dueDate={project.dueDate}
+            assigneeId={project.assigneeId}
+            assigneeName={project.assigneeName}
+            assignees={assignees}
+            clients={clients}
+            canEdit={canEditDetails}
+          />
           <div className="flex flex-col gap-2">
             <h3 className="font-heading text-base font-semibold text-ink">Description</h3>
             <p className="max-w-[520px] text-[15px] leading-relaxed text-ink-secondary">{project.description}</p>

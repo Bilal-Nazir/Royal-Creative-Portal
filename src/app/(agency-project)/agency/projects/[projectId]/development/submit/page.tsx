@@ -29,7 +29,7 @@ export default async function SubmitDevelopmentPage({ params }: { params: Promis
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader

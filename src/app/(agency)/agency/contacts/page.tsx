@@ -4,7 +4,6 @@ import { listContacts, listStages } from "@/server/services/contact-service";
 import { TopBar } from "@/components/layout/TopBar";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { ContactsBoard } from "@/components/project/ContactsBoard";
 
 export default async function AgencyContactsPage() {
@@ -16,19 +15,10 @@ export default async function AgencyContactsPage() {
   const [contacts, stages] = await Promise.all([listContacts(), listStages()]);
 
   return (
-    <>
-      <TopBar breadcrumb="Royal Creative / Contacts" action={<NotificationsBell className="w-[200px]" />} />
-      <PageHeader
-        eyebrow="AGENCY WORKSPACE"
-        title="Contacts"
-        description="Track enquiries from first contact to a decision."
-        action={
-          <Button href="/agency/contacts/new" variant="primary" className="w-[180px]">
-            Add contact
-          </Button>
-        }
-      />
+    <div className="flex flex-col gap-3">
+      <TopBar breadcrumb="Royal Creative / Contacts" action={<NotificationsBell iconOnly />} />
+      <PageHeader title="Contacts" />
       <ContactsBoard contacts={contacts} stages={stages} />
-    </>
+    </div>
   );
 }

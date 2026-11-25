@@ -33,11 +33,10 @@ export default async function LaunchScheduledPage({ params }: { params: Promise<
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title={project.launchDate ? `Launch scheduled for ${formatDate(project.launchDate)}` : "Launch is being scheduled"}
         description="Royal Creative is completing the final checks. We'll notify you when your website is live."
       />

@@ -21,7 +21,7 @@ export default async function AddContactPage() {
         breadcrumb="Royal Creative / Contacts"
         action={
           <div className="flex gap-3">
-            <NotificationsBell className="w-[200px]" />
+            <NotificationsBell iconOnly />
             <Button href="/agency/contacts" variant="secondary" className="w-[180px]">
               Back to contacts
             </Button>
@@ -29,7 +29,6 @@ export default async function AddContactPage() {
         }
       />
       <PageHeader
-        eyebrow="AGENCY WORKSPACE"
         title="Add a contact"
         description="Create a lead or client record before sending a proposal or inviting them to a project."
       />

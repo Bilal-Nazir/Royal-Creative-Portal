@@ -19,7 +19,7 @@ export default async function FilesPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Files" action={<NotificationsBell className="w-[180px]" />} />
+      <TopBar breadcrumb="Files" action={<NotificationsBell iconOnly />} />
       <PageHeader eyebrow="CLIENT PORTAL" title="Files" description="Everything shared on your projects, in both directions." />
       <Card className="flex flex-col gap-3 p-6">
         {rows.length === 0 ? (

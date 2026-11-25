@@ -34,7 +34,7 @@ export default async function ClientPaymentsPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Payments" action={<NotificationsBell className="w-[180px]" />} />
+      <TopBar breadcrumb="Payments" action={<NotificationsBell iconOnly />} />
       <PageHeader eyebrow="CLIENT PORTAL" title="Payments" description="Your invoices across every project, with payment status." />
       <Card className="flex flex-col gap-2.5 p-6">
         {rows.length === 0 ? (

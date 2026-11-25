@@ -2,9 +2,19 @@
 
 Royal Creative client/agency portal. Figma file `q59B9tWGSDdfXZXSSNDazB`.
 
+> **Phase 5 (DynamoDB migration)**: MongoDB and Redis have been fully
+> removed and replaced with DynamoDB (`REPOSITORY_DRIVER=dynamo|memory` — the
+> `mongo` option no longer exists). Sessions and rate-limiting also moved off
+> Redis onto DynamoDB (TTL-backed) for `dynamo`, and a plain in-process Map
+> for `memory` (tests). See `server/db/dynamo.ts`, `server/db/dynamo-tables.ts`,
+> and `server/repositories/dynamo/dynamo-repositories.ts`. Everything below
+> this note that still says "MongoDB"/"Mongo"/"Redis" describes the
+> **old** Phase 4a architecture and is kept for history — treat the Dynamo
+> files as the source of truth where they disagree.
+
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-based tokens, no config file) · Zod · lucide-react (icons Figma doesn't have) · Vitest · Playwright. MongoDB via Mongoose (real persistence, Phase 4a) · Redis via ioredis (sessions, rate limiting, cache) · argon2 (real password hashing) · @aws-sdk/client-s3 + s3-request-presigner (file storage, Phase 4b) · nodemailer (real email, Phase 4b) · @react-pdf/renderer (PDF brief, Phase 4b). No other UI libraries. npm.
+Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind v4 (CSS-based tokens, no config file) · Zod · lucide-react (icons Figma doesn't have) · Vitest · Playwright. DynamoDB via @aws-sdk/client-dynamodb + lib-dynamodb (real persistence and sessions/rate-limiting, Phase 5 — replaces Mongo/Redis) · argon2 (real password hashing) · @aws-sdk/client-s3 + s3-request-presigner (file storage, Phase 4b) · nodemailer (real email, Phase 4b) · @react-pdf/renderer (PDF brief, Phase 4b). No other UI libraries. npm.
 
 ## Local setup (Phase 4a)
 

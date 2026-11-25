@@ -13,7 +13,7 @@ import {
 } from "../repositories/container";
 import { createInvoicesFromPaymentSchedule } from "./invoice-service";
 import { env } from "../env";
-import { ContentSubmissionModel, DesignPinCommentModel, DesignVersionModel, RevisionRoundModel, HandoverResourceModel, ScopeChangeModel } from "../db/models";
+import { deleteItem } from "../db/dynamo";
 import { getStore } from "../repositories/in-memory/memory-store";
 import type { Stage } from "../domain/stage";
 import type { BriefStatus } from "../domain/brief";
@@ -47,7 +47,7 @@ export interface DemoStatePatch {
 }
 
 const IMAGES_ITEM_ID = "content-royal-trendsy-images";
-const isMongo = env.REPOSITORY_DRIVER === "mongo";
+const isDynamo = env.REPOSITORY_DRIVER === "dynamo";
 
 /**
  * Dev-only convenience for reaching every screen state without replaying the
@@ -102,9 +102,12 @@ export async function setDemoState(patch: DemoStatePatch): Promise<void> {
   if (patch.scopeChangeScenario) await applyScopeChangeScenario(patch.projectId, patch.scopeChangeScenario);
 }
 
-async function clearContentSubmissionsForItem(checklistItemId: string): Promise<void> {
-  if (isMongo) {
-    await ContentSubmissionModel.deleteMany({ checklistItemId });
+async function clearContentSubmissionsForItem(projectId: string, checklistItemId: string): Promise<void> {
+  if (isDynamo) {
+    const submissions = await contentSubmissionRepository.listByProjectId(projectId);
+    await Promise.all(
+      submissions.filter((s) => s.checklistItemId === checklistItemId).map((s) => deleteItem("contentSubmissions", s.id)),
+    );
     return;
   }
   const store = getStore();
@@ -112,11 +115,15 @@ async function clearContentSubmissionsForItem(checklistItemId: string): Promise<
 }
 
 async function clearReviewData(projectId: string, kind: ReviewKind): Promise<void> {
-  if (isMongo) {
-    const versionIds = (await DesignVersionModel.find({ projectId, kind }).select("_id").lean()).map((v) => String(v._id));
-    await DesignPinCommentModel.deleteMany({ designVersionId: { $in: versionIds } });
-    await DesignVersionModel.deleteMany({ projectId, kind });
-    await RevisionRoundModel.deleteMany({ projectId, kind });
+  if (isDynamo) {
+    const versions = await designVersionRepository.listByProjectId(projectId, kind);
+    for (const version of versions) {
+      const pins = await designPinCommentRepository.listByVersionId(version.id);
+      await Promise.all(pins.map((pin) => deleteItem("designPinComments", pin.id)));
+      await deleteItem("designVersions", version.id);
+    }
+    const rounds = await revisionRoundRepository.listByProjectId(projectId, kind);
+    await Promise.all(rounds.map((round) => deleteItem("revisionRounds", round.id)));
     return;
   }
   const store = getStore();
@@ -128,8 +135,9 @@ async function clearReviewData(projectId: string, kind: ReviewKind): Promise<voi
 }
 
 async function clearHandoverResources(projectId: string): Promise<void> {
-  if (isMongo) {
-    await HandoverResourceModel.deleteMany({ projectId });
+  if (isDynamo) {
+    const resources = await handoverResourceRepository.listByProjectId(projectId);
+    await Promise.all(resources.map((r) => handoverResourceRepository.delete(r.id)));
     return;
   }
   const store = getStore();
@@ -137,8 +145,9 @@ async function clearHandoverResources(projectId: string): Promise<void> {
 }
 
 async function clearScopeChanges(projectId: string): Promise<void> {
-  if (isMongo) {
-    await ScopeChangeModel.deleteMany({ projectId });
+  if (isDynamo) {
+    const changes = await scopeChangeRepository.listByProjectId(projectId);
+    await Promise.all(changes.map((c) => deleteItem("scopeChanges", c.id)));
     return;
   }
   const store = getStore();
@@ -154,7 +163,7 @@ async function applyContentScenario(projectId: string, scenario: ContentScenario
   const item = await contentChecklistRepository.findById(IMAGES_ITEM_ID);
   if (!item || item.projectId !== projectId) return;
 
-  await clearContentSubmissionsForItem(IMAGES_ITEM_ID);
+  await clearContentSubmissionsForItem(projectId, IMAGES_ITEM_ID);
 
   if (scenario === "baseline") {
     await contentChecklistRepository.update({ ...item, status: "not_started" });

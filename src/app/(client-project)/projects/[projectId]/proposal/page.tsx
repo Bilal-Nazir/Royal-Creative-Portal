@@ -26,7 +26,7 @@ export default async function ProposalReviewPage({ params }: { params: Promise<{
   const userCanAct = canAct(session);
   const breadcrumb = `My projects  /  ${project.clientName}`;
   const notifications = (
-    <NotificationsBell className="w-[180px]" />
+    <NotificationsBell iconOnly />
   );
   const scheduleText = proposal.paymentSchedule.map((item) => `${formatGBP(item.amount)} ${item.label.toLowerCase()}`).join(" · ");
 
@@ -38,24 +38,24 @@ export default async function ProposalReviewPage({ params }: { params: Promise<{
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Proposal accepted"
-          description="Pay your deposit to move this project into the content stage."
+          description={
+            record
+              ? `Accepted by ${record.userName} on ${formatDate(record.acceptedAt)}. Pay your deposit to move this project into the content stage.`
+              : "Pay your deposit to move this project into the content stage."
+          }
         />
-        <Card className="flex flex-col gap-4 p-6">
-          <h2 className="font-heading text-xl font-semibold text-ink">
-            Proposal Version {proposal.versionNumber} · {formatGBP(proposal.fee)}
-          </h2>
-          {record ? (
-            <p className="text-sm text-ink-secondary">
-              Accepted by {record.userName} on {formatDate(record.acceptedAt)}
-            </p>
-          ) : null}
-          <Button href={`/projects/${projectId}/deposit`} variant="primary" className="w-[196px]">
-            Go to deposit
-          </Button>
-        </Card>
         <ProposalDocument title={`Website design & development · Version ${proposal.versionNumber}`} fields={proposal.fields} />
+        <Card className="flex w-full items-center gap-4 px-[18px] py-3">
+          <p className="font-heading text-base font-semibold text-ink">
+            Proposal Version {proposal.versionNumber} · {formatGBP(proposal.fee)}
+          </p>
+          <div className="ml-auto">
+            <Button href={`/projects/${projectId}/deposit`} variant="primary" className="w-[196px]">
+              Go to deposit
+            </Button>
+          </div>
+        </Card>
       </>
     );
   }
@@ -65,7 +65,6 @@ export default async function ProposalReviewPage({ params }: { params: Promise<{
       <>
         <TopBar breadcrumb={breadcrumb} action={notifications} />
         <PageHeader
-          eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
           title="Changes requested"
           description="We've sent your requested changes to Royal Creative — we'll let you know when a revised proposal is ready."
         />
@@ -84,7 +83,6 @@ export default async function ProposalReviewPage({ params }: { params: Promise<{
     <>
       <TopBar breadcrumb={breadcrumb} action={notifications} />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="A plan for your new website."
         description="Review the scope, investment and delivery milestones."
       />

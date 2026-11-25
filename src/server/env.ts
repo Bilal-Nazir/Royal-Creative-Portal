@@ -9,11 +9,16 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 characters."),
-  MONGODB_URI: z.string().min(1, "MONGODB_URI is required."),
-  REDIS_URL: z.string().min(1, "REDIS_URL is required."),
-  REPOSITORY_DRIVER: z.enum(["mongo", "memory"]).default("mongo"),
+  REPOSITORY_DRIVER: z.enum(["dynamo", "memory"]).default("dynamo"),
   ALLOW_DEMO_STATE: z.string().optional(),
   APP_URL: z.string().default("http://localhost:3000"),
+
+  // DynamoDB — credentials are picked up by the AWS SDK's own default chain
+  // (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION env vars), not
+  // read through this schema. DYNAMO_TABLE_PREFIX scopes table names per
+  // environment (dev/staging/prod) so they can share one AWS account.
+  AWS_REGION: z.string().optional(),
+  DYNAMO_TABLE_PREFIX: z.string().optional(),
 
   // Phase 4b
   PAYMENT_DRIVER: z.enum(["bank", "mock"]).default("bank"),
@@ -47,6 +52,9 @@ function loadEnv(): Env {
   // Mock payments are a demo/test convenience only — never allowed to go live by accident.
   if (env.PAYMENT_DRIVER === "mock" && env.NODE_ENV === "production") {
     throw new Error('PAYMENT_DRIVER=mock is not allowed when NODE_ENV=production. Set PAYMENT_DRIVER=bank (or add Stripe later).');
+  }
+  if (env.REPOSITORY_DRIVER === "dynamo" && (!env.AWS_REGION || !env.DYNAMO_TABLE_PREFIX)) {
+    throw new Error("REPOSITORY_DRIVER=dynamo requires AWS_REGION and DYNAMO_TABLE_PREFIX.");
   }
   if (env.STORAGE_DRIVER === "s3" && (!env.S3_BUCKET || !env.S3_REGION)) {
     throw new Error("STORAGE_DRIVER=s3 requires S3_BUCKET and S3_REGION.");

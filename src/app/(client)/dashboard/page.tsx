@@ -28,7 +28,7 @@ export default async function ClientDashboardPage() {
       <TopBar
         breadcrumb="My projects"
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
 

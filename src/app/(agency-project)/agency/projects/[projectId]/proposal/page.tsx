@@ -28,7 +28,7 @@ export default async function ProposalEditorPage({ params }: { params: Promise<{
       <TopBar
         breadcrumb={`Royal Creative / Projects / ${project.name}`}
         action={
-          <NotificationsBell className="w-[200px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader

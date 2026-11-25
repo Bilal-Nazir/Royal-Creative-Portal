@@ -8,9 +8,9 @@ import type { Stage } from "@/server/domain/stage";
 const AGENCY_NAV_ITEMS = [
   { href: "/agency/dashboard", label: "Dashboard" },
   { href: "/agency/projects", label: "Projects" },
-  { href: "/agency/payments", label: "Payments" },
   { href: "/agency/contacts", label: "Contacts" },
   { href: "/agency/messages", label: "Messages" },
+  { href: "/agency/payments", label: "Payments" },
   { href: "/agency/settings", label: "Settings" },
 ];
 
@@ -41,7 +41,6 @@ export function AgencyShell({ children, journeyStage, journeyProjectId, journeyB
 
       <aside className="hidden w-[232px] shrink-0 flex-col gap-[9px] bg-surface p-[20px] lg:flex">
         <Logo width={184} />
-        <p className="text-xs text-ink-secondary">AGENCY WORKSPACE</p>
         <nav className="flex flex-col gap-[9px]" aria-label="Agency navigation">
           {AGENCY_NAV_ITEMS.map((item) => (
             <NavItem key={item.href} href={item.href} label={item.label} />

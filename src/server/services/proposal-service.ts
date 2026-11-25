@@ -1,5 +1,5 @@
 import { proposalRepository, acceptanceRecordRepository, projectRepository } from "../repositories/container";
-import { withTransaction } from "../db/mongoose";
+import { withTransaction } from "../db/transaction";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, notFound, type ServiceResult } from "./result";
 import { tryAdvanceStageIfGated } from "./stage-service";

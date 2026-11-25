@@ -26,9 +26,11 @@ import type {
   AgencySettingsRepository,
   InviteRepository,
   PasswordResetTokenRepository,
+  ProjectBoardColumnRepository,
 } from "../interfaces";
 import type { User } from "../../domain/user";
 import type { Project, ActivityItem, AttentionTask } from "../../domain/project";
+import type { ProjectBoardColumn } from "../../domain/project-board";
 import type { BriefVersion } from "../../domain/brief";
 import type { ProposalVersion, AcceptanceRecord } from "../../domain/proposal";
 import type { Invoice } from "../../domain/invoice";
@@ -405,6 +407,32 @@ export class InMemoryNotificationRepository implements NotificationRepository {
     const index = store.notifications.findIndex((n) => n.id === notification.id);
     if (index === -1) return;
     store.notifications[index] = notification;
+  }
+}
+
+export class InMemoryProjectBoardColumnRepository implements ProjectBoardColumnRepository {
+  async listAll(): Promise<ProjectBoardColumn[]> {
+    return getStore().projectBoardColumns.slice().sort((a, b) => a.order - b.order);
+  }
+
+  async findById(id: string): Promise<ProjectBoardColumn | null> {
+    return getStore().projectBoardColumns.find((c) => c.id === id) ?? null;
+  }
+
+  async create(column: ProjectBoardColumn): Promise<void> {
+    getStore().projectBoardColumns.push(column);
+  }
+
+  async update(column: ProjectBoardColumn): Promise<void> {
+    const store = getStore();
+    const index = store.projectBoardColumns.findIndex((c) => c.id === column.id);
+    if (index === -1) return;
+    store.projectBoardColumns[index] = column;
+  }
+
+  async delete(id: string): Promise<void> {
+    const store = getStore();
+    store.projectBoardColumns = store.projectBoardColumns.filter((c) => c.id !== id);
   }
 }
 

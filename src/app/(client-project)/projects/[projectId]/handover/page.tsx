@@ -28,11 +28,10 @@ export default async function HandoverPage({ params }: { params: Promise<{ proje
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Your website is live."
         description="Find your website guide, training video and post-launch support below."
       />

@@ -30,8 +30,8 @@ export default async function AgencyMessagesPage() {
 
   return (
     <>
-      <TopBar breadcrumb="Royal Creative / Messages" action={<NotificationsBell className="w-[200px]" />} />
-      <PageHeader eyebrow="AGENCY WORKSPACE" title="Messages" />
+      <TopBar breadcrumb="Royal Creative / Messages" action={<NotificationsBell iconOnly />} />
+      <PageHeader title="Messages" />
       {items.length === 0 ? (
         <p className="text-sm text-ink-secondary">No conversations yet — they&apos;ll appear here once a project chat starts.</p>
       ) : (

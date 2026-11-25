@@ -1,9 +1,7 @@
 import { contactStageRepository, contactRepository, contactActivityRepository } from "../repositories/container";
 import { ok, forbidden, notFound, badRequest, type ServiceResult } from "./result";
 import type { SessionPayload } from "../auth/session";
-import type { Contact, ContactStage, ContactActivity, ContactActivityType } from "../domain/contact";
-
-const STAGE_COLORS = ["#8b8fa3", "#7aa3f7", "#a78bfa", "#4ade80", "#f87171", "#f2b84b", "#4fd1c5"];
+import { CONTACT_STAGE_COLORS, type Contact, type ContactStage, type ContactActivity, type ContactActivityType } from "../domain/contact";
 
 function assertOwnerOrAdmin<T>(session: SessionPayload): ServiceResult<T> | null {
   if (session.role !== "agency") return forbidden("Only agency staff can manage the pipeline.");
@@ -17,7 +15,7 @@ export async function listStages(): Promise<ContactStage[]> {
   return contactStageRepository.listAll();
 }
 
-export async function createStage(session: SessionPayload, name: string): Promise<ServiceResult<ContactStage>> {
+export async function createStage(session: SessionPayload, name: string, color?: string): Promise<ServiceResult<ContactStage>> {
   const denied = assertOwnerOrAdmin<ContactStage>(session);
   if (denied) return denied;
   if (!name.trim()) return badRequest("Give the stage a name.");
@@ -27,7 +25,7 @@ export async function createStage(session: SessionPayload, name: string): Promis
     id: `stage-${Date.now().toString(36)}`,
     name: name.trim(),
     order: stages.length,
-    color: STAGE_COLORS[stages.length % STAGE_COLORS.length],
+    color: color && CONTACT_STAGE_COLORS.includes(color) ? color : CONTACT_STAGE_COLORS[stages.length % CONTACT_STAGE_COLORS.length],
   };
   await contactStageRepository.create(stage);
   return ok(stage);

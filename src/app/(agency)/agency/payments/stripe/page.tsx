@@ -20,14 +20,14 @@ export default async function StripeSettingsPage() {
         breadcrumb="Royal Creative / Payments"
         action={
           <div className="flex gap-3">
-            <NotificationsBell className="w-[200px]" />
+            <NotificationsBell iconOnly />
             <Button href="/agency/payments" variant="secondary" className="w-[180px]">
               Back to payments
             </Button>
           </div>
         }
       />
-      <PageHeader eyebrow="AGENCY WORKSPACE" title="Stripe settings" description="Connect your Stripe account to accept online payments." />
+      <PageHeader title="Stripe settings" description="Connect your Stripe account to accept online payments." />
       <Card className="flex flex-col gap-4 p-6">
         <h2 className="font-heading text-xl font-semibold text-ink">Card payments: not set up yet</h2>
         <p className="text-sm text-ink-secondary">

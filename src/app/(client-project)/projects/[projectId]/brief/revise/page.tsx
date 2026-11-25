@@ -23,11 +23,10 @@ export default async function BriefRevisePage({ params }: { params: Promise<{ pr
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="What should we adjust?"
         description="Your feedback will return the brief to Royal Creative."
       />

@@ -1,5 +1,5 @@
-import type { ClientSession } from "mongoose";
 import { invoiceRepository, projectRepository } from "../repositories/container";
+import type { Tx } from "../repositories/interfaces";
 import { paymentProvider } from "../payments";
 import { assertClientCanActOnProject, assertAgencyCanManageProject } from "./permissions";
 import { ok, badRequest, notFound, type ServiceResult } from "./result";
@@ -53,7 +53,7 @@ async function tickFinalPaymentIfApplicable(invoice: Invoice, project: Project):
 export async function createInvoicesFromPaymentSchedule(
   projectId: string,
   schedule: PaymentScheduleItem[],
-  session?: ClientSession | null,
+  session?: Tx,
 ): Promise<void> {
   if (schedule.length === 0) return;
 

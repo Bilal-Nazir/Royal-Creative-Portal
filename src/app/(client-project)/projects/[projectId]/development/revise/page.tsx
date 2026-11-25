@@ -31,11 +31,10 @@ export default async function SubmitDevelopmentRevisionRoundPage({ params }: { p
       <TopBar
         breadcrumb={`My projects  /  ${project.clientName}`}
         action={
-          <NotificationsBell className="w-[180px]" />
+          <NotificationsBell iconOnly />
         }
       />
       <PageHeader
-        eyebrow={`${project.clientName.toUpperCase()} · WEBSITE PROJECT`}
         title="Send your feedback to the team"
         description={`Your comments will be submitted together as Development revision round ${rounds.length + 1}.`}
       />
