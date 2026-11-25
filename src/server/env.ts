@@ -70,4 +70,24 @@ function loadEnv(): Env {
   return env;
 }
 
-export const env: Env = loadEnv();
+let cached: Env | null = null;
+
+/**
+ * Lazy by design: some bundles (notably Next's middleware/proxy chunk) get
+ * required during Lambda cold start, before Amplify Hosting finishes
+ * injecting console-configured env vars into that execution context. A
+ * top-level `loadEnv()` call would crash those bundles with false
+ * "undefined" errors even though the vars are set correctly. Validating on
+ * first property access instead defers the check until an actual request is
+ * being handled, by which point the vars are present.
+ */
+export const env: Env = new Proxy({} as Env, {
+  get(_target, prop: string | symbol) {
+    if (!cached) cached = loadEnv();
+    return cached[prop as keyof Env];
+  },
+  has(_target, prop) {
+    if (!cached) cached = loadEnv();
+    return prop in cached;
+  },
+});
