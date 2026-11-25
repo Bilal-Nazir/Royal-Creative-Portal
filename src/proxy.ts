@@ -13,11 +13,24 @@ function roleHome(session: SessionPayload): string {
   return session.role === "agency" ? "/agency/dashboard" : "/dashboard";
 }
 
-/** CSRF: every mutating API request's Origin must match this app — a cross-site form/fetch can't carry a matching Origin header. */
+/**
+ * CSRF: every mutating API request's Origin must match this app's host — a
+ * cross-site form/fetch can't carry a matching Origin header. Compared by
+ * host only (not full origin string with scheme): behind a CDN like
+ * CloudFront, `request.nextUrl`'s protocol can reflect the internal
+ * edge-to-origin hop (often http) rather than the public https URL the
+ * browser actually used, so a scheme-sensitive comparison rejects
+ * legitimate same-site requests.
+ */
 function hasValidOrigin(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return false;
-  return origin === request.nextUrl.origin;
+  const requestHost = request.headers.get("host") ?? request.nextUrl.host;
+  try {
+    return new URL(origin).host === requestHost;
+  } catch {
+    return false;
+  }
 }
 
 export async function proxy(request: NextRequest) {
